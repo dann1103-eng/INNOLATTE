@@ -25,8 +25,14 @@ export const CATEGORIAS = ["CONGELADOS", "YOGURT", "MEZCLAS", "TOPPING"] as cons
 
 export const FORMAS_PAGO: FormaPago[] = ["CONTADO", "CREDITO"];
 
-/** Número de listas de precios soportadas (P1..P8 con datos hoy, hasta 20). */
-export const LISTAS_PRECIOS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+/** Listas de precios soportadas: P1..P20. */
+export const LISTAS_PRECIOS: number[] = Array.from({ length: 20 }, (_, i) => i + 1);
+
+/** Etiquetas conocidas para algunas listas. */
+export const ETIQUETAS_LISTA: Record<number, string> = {
+  2: "Estándar",
+  4: "Distribuidor",
+};
 
 export const ESTADOS_PEDIDO: { value: EstadoPedido; label: string; color: string }[] = [
   { value: "PENDIENTE", label: "Pendiente", color: "amber" },

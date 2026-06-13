@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EstadoBadge } from "@/components/pedidos/estado-badge";
 import { EmptyState } from "@/components/app/empty-state";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { PeriodFilter } from "@/components/app/period-filter";
+import { formatCurrency, formatDate, rangoPeriodo } from "@/lib/utils";
 import type { EstadoPedido } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -54,15 +55,28 @@ function StatCard({
   return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ periodo?: string }>;
+}) {
+  const { periodo } = await searchParams;
   const supabase = await createClient();
-  const hoy = new Date().toISOString().slice(0, 10);
+  const rango = rangoPeriodo(periodo);
 
-  const [clientesRes, productosRes, pedidosHoyRes, recientesRes, pendientesRes] =
+  // Consulta de ventas/conteo del período seleccionado.
+  let ventasQuery = supabase
+    .from("pedidos")
+    .select("total")
+    .neq("estado", "CANCELADO")
+    .lte("fecha", rango.hasta);
+  if (rango.desde) ventasQuery = ventasQuery.gte("fecha", rango.desde);
+
+  const [clientesRes, productosRes, ventasRes, recientesRes, pendientesRes] =
     await Promise.all([
       supabase.from("clientes").select("id", { count: "exact", head: true }),
       supabase.from("productos").select("id", { count: "exact", head: true }),
-      supabase.from("pedidos").select("total").eq("fecha", hoy).neq("estado", "CANCELADO"),
+      ventasQuery,
       supabase
         .from("pedidos")
         .select("id, folio, fecha, total, estado, cliente:clientes(nombre, nombre_comercial)")
@@ -74,11 +88,11 @@ export default async function DashboardPage() {
         .eq("estado", "PENDIENTE"),
     ]);
 
-  const totalHoy = (pedidosHoyRes.data ?? []).reduce(
+  const totalPeriodo = (ventasRes.data ?? []).reduce(
     (acc, p: { total: number }) => acc + Number(p.total || 0),
     0,
   );
-  const pedidosHoyCount = pedidosHoyRes.data?.length ?? 0;
+  const pedidosPeriodoCount = ventasRes.data?.length ?? 0;
   const recientes = (recientesRes.data ?? []) as unknown as {
     id: string;
     folio: number;
@@ -90,7 +104,8 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Inicio" description="Resumen de la operación de hoy">
+      <PageHeader title="Inicio" description="Resumen de la operación">
+        <PeriodFilter />
         <Link href="/pedidos/nuevo">
           <Button>
             <Plus className="size-4" />
@@ -101,12 +116,17 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
-          label="Ventas de hoy"
-          value={formatCurrency(totalHoy)}
+          label={`Ventas (${rango.label})`}
+          value={formatCurrency(totalPeriodo)}
           icon={CircleDollarSign}
           tone="green"
         />
-        <StatCard label="Pedidos de hoy" value={pedidosHoyCount} icon={ClipboardList} tone="blue" />
+        <StatCard
+          label={`Pedidos (${rango.label})`}
+          value={pedidosPeriodoCount}
+          icon={ClipboardList}
+          tone="blue"
+        />
         <StatCard
           label="Pendientes"
           value={pendientesRes.count ?? 0}

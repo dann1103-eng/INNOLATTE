@@ -4,17 +4,22 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { resolverPrecio, calcularSubtotal, calcularTotal } from "@/lib/pricing";
+import { round2 } from "@/lib/utils";
 import type { EstadoPedido } from "@/lib/types";
 
 const ItemSchema = z.object({
   productoId: z.string().uuid(),
   cantidad: z.number().int().positive(),
+  // Precio fijado a mano para la línea (opcional). Si no viene, se usa la lista.
+  precioUnitario: z.number().nonnegative().optional(),
 });
 
 const PedidoSchema = z.object({
   clienteId: z.string().uuid("Selecciona un cliente"),
   fecha: z.string().min(1),
   notas: z.string().nullable().optional(),
+  // Lista de precios a aplicar SOLO a este pedido (override). Si no viene, la del cliente.
+  lista: z.number().int().min(1).max(20).optional(),
   items: z.array(ItemSchema).min(1, "Agrega al menos un producto"),
 });
 
@@ -38,7 +43,7 @@ export async function crearPedido(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { clienteId, fecha, notas, items } = parsed.data;
+  const { clienteId, fecha, notas, items, lista: listaOverride } = parsed.data;
 
   // Cliente + su lista de precios.
   const { data: cliente, error: cliErr } = await supabase
@@ -48,7 +53,8 @@ export async function crearPedido(
     .single();
   if (cliErr || !cliente) return { ok: false, error: "Cliente no encontrado" };
 
-  const lista = cliente.lista_precios;
+  // La lista override aplica solo a este pedido; no modifica al cliente.
+  const lista = listaOverride ?? cliente.lista_precios;
 
   // Productos con sus precios.
   const ids = items.map((i) => i.productoId);
@@ -83,11 +89,18 @@ export async function crearPedido(
   for (const item of items) {
     const prod = mapaProd.get(item.productoId);
     if (!prod) return { ok: false, error: "Un producto del pedido ya no existe" };
-    const { precio, sinPrecio } = resolverPrecio({ precios: prod.precios }, lista);
-    if (sinPrecio || precio === null) {
+
+    // Precio: el fijado a mano (si es válido) tiene prioridad; si no, el de la lista.
+    const base = resolverPrecio({ precios: prod.precios }, lista);
+    const precio =
+      item.precioUnitario !== undefined && item.precioUnitario >= 0
+        ? round2(item.precioUnitario)
+        : base.precio;
+
+    if (precio === null) {
       return {
         ok: false,
-        error: `El producto ${prod.codigo} no tiene precio en la lista P${lista} del cliente.`,
+        error: `El producto ${prod.codigo} no tiene precio en la lista P${lista}. Asígnale un precio en la línea.`,
       };
     }
     lineas.push({

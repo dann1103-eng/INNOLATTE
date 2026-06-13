@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -20,7 +20,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { ProductoConPrecios } from "@/lib/types";
+import { LISTAS_PRECIOS, ETIQUETAS_LISTA, type ProductoConPrecios } from "@/lib/types";
 
 export interface ClienteSelector {
   id: string;
@@ -36,6 +36,8 @@ export interface ClienteSelector {
 interface LineaPedido {
   producto: ProductoConPrecios;
   cantidad: number;
+  /** Precio fijado manualmente para este pedido (null = usa el de la lista). */
+  precioManual: number | null;
 }
 
 export function OrderBuilder({
@@ -53,11 +55,18 @@ export function OrderBuilder({
   const [notas, setNotas] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [lineas, setLineas] = useState<LineaPedido[]>([]);
+  const [listaManual, setListaManual] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const cliente = clientes.find((c) => c.id === clienteId);
-  const lista = cliente?.lista_precios ?? null;
+  // Lista efectiva: la elegida para este pedido, o la predeterminada del cliente.
+  const lista = cliente ? (listaManual ?? cliente.lista_precios) : null;
+
+  // Al cambiar de cliente, se reinicia la lista a la predeterminada del nuevo cliente.
+  useEffect(() => {
+    setListaManual(null);
+  }, [clienteId]);
 
   const resultados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -80,7 +89,7 @@ export function OrderBuilder({
         copia[i] = { ...copia[i], cantidad: copia[i].cantidad + 1 };
         return copia;
       }
-      return [...prev, { producto, cantidad: 1 }];
+      return [...prev, { producto, cantidad: 1, precioManual: null }];
     });
     setBusqueda("");
   }
@@ -93,13 +102,27 @@ export function OrderBuilder({
     );
   }
 
+  function cambiarPrecio(id: string, raw: string) {
+    setLineas((prev) =>
+      prev.map((l) => {
+        if (l.producto.id !== id) return l;
+        if (raw.trim() === "") return { ...l, precioManual: null };
+        const n = parseFloat(raw);
+        return { ...l, precioManual: isFinite(n) && n >= 0 ? n : 0 };
+      }),
+    );
+  }
+
   function quitar(id: string) {
     setLineas((prev) => prev.filter((l) => l.producto.id !== id));
   }
 
   // Cálculos con el motor de precios (mismo que el servidor).
+  // El precio manual de la línea tiene prioridad sobre el de la lista.
   const filasCalculadas = lineas.map((l) => {
-    const { precio, sinPrecio } = resolverPrecio(l.producto, lista ?? 0);
+    const base = resolverPrecio(l.producto, lista ?? 0);
+    const precio = l.precioManual != null ? l.precioManual : base.precio;
+    const sinPrecio = precio == null;
     return {
       ...l,
       precio,
@@ -131,7 +154,12 @@ export function OrderBuilder({
         clienteId: cliente.id,
         fecha,
         notas,
-        items: lineas.map((l) => ({ productoId: l.producto.id, cantidad: l.cantidad })),
+        lista: lista ?? undefined,
+        items: filasCalculadas.map((f) => ({
+          productoId: f.producto.id,
+          cantidad: f.cantidad,
+          precioUnitario: f.precio ?? undefined,
+        })),
       });
       if (res.ok && res.id) {
         router.push(`/pedidos/${res.id}`);
@@ -173,18 +201,45 @@ export function OrderBuilder({
             </div>
 
             {cliente && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg bg-slate-50 p-3 text-sm">
-                <Info label="Canal" value={cliente.canal || "—"} />
-                <Info
-                  label="Lista"
-                  value={<Badge tone="brand">P{cliente.lista_precios}</Badge>}
-                />
-                <Info
-                  label="Pago"
-                  value={cliente.forma_pago === "CREDITO" ? "Crédito" : "Contado"}
-                />
-                <Info label="Entrega" value={cliente.direccion_entrega || "—"} full />
-              </div>
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg bg-slate-50 p-3 text-sm">
+                  <Info label="Canal" value={cliente.canal || "—"} />
+                  <Info
+                    label="Lista del cliente"
+                    value={<Badge tone="brand">P{cliente.lista_precios}</Badge>}
+                  />
+                  <Info
+                    label="Pago"
+                    value={cliente.forma_pago === "CREDITO" ? "Crédito" : "Contado"}
+                  />
+                  <Info label="Entrega" value={cliente.direccion_entrega || "—"} full />
+                </div>
+
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <Label htmlFor="lista-pedido">Lista de precios para este pedido</Label>
+                    <Select
+                      id="lista-pedido"
+                      value={String(lista ?? cliente.lista_precios)}
+                      onChange={(e) => setListaManual(Number(e.target.value))}
+                      className="w-60"
+                    >
+                      {LISTAS_PRECIOS.map((l) => (
+                        <option key={l} value={l}>
+                          P{l}
+                          {ETIQUETAS_LISTA[l] ? ` · ${ETIQUETAS_LISTA[l]}` : ""}
+                          {l === cliente.lista_precios ? " (predeterminada)" : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  {listaManual != null && listaManual !== cliente.lista_precios && (
+                    <span className="mb-2.5 text-xs text-amber-600">
+                      Cambio solo para este pedido (no modifica al cliente).
+                    </span>
+                  )}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -277,8 +332,20 @@ export function OrderBuilder({
                             </span>
                           )}
                         </td>
-                        <td className="py-2 px-2 text-right tabular-nums">
-                          {f.precio != null ? formatCurrency(f.precio) : "—"}
+                        <td className="py-2 px-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            inputMode="decimal"
+                            value={f.precio ?? ""}
+                            onChange={(e) => cambiarPrecio(f.producto.id, e.target.value)}
+                            placeholder="—"
+                            className={cn(
+                              "h-8 w-24 ml-auto text-right",
+                              f.precioManual != null && "border-amber-400 bg-amber-50",
+                            )}
+                          />
                         </td>
                         <td className="py-2 px-2">
                           <Input
