@@ -60,16 +60,13 @@ export function RutasReport({
   grupos?: { grupo: string; dias: Ruta[] }[];
 }) {
   // Botones de ruta: desde la BD si existe horario; si no, el horario inicial.
+  // Se muestran TODOS los días (Lun–Sáb); los vacíos salen deshabilitados.
   const presetsActivos =
     grupos && grupos.length > 0
-      ? grupos
-          .map((g) => ({
-            grupo: g.grupo,
-            dias: g.dias
-              .filter((d) => d.distritos.length > 0)
-              .map((d) => ({ label: d.dia, distritos: d.distritos })),
-          }))
-          .filter((g) => g.dias.length > 0)
+      ? grupos.map((g) => ({
+          grupo: g.grupo,
+          dias: g.dias.map((d) => ({ label: d.dia, distritos: d.distritos })),
+        }))
       : PRESETS;
   const router = useRouter();
   const pathname = usePathname();
@@ -167,16 +164,30 @@ export function RutasReport({
               <span className="text-xs font-semibold uppercase tracking-wide text-muted w-28 shrink-0">
                 {g.grupo}
               </span>
-              {g.dias.map((d) => (
-                <button
-                  key={d.label}
-                  type="button"
-                  onClick={() => aplicarPreset(d.distritos)}
-                  className="rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium hover:bg-brand-50 hover:border-brand-300 transition-colors"
-                >
-                  {d.label}
-                </button>
-              ))}
+              {g.dias.map((d) => {
+                const vacio = d.distritos.length === 0;
+                return (
+                  <button
+                    key={d.label}
+                    type="button"
+                    disabled={vacio}
+                    onClick={() => aplicarPreset(d.distritos)}
+                    title={
+                      vacio
+                        ? "Sin distritos asignados — agrégalos en “Editar horario”"
+                        : `${d.distritos.length} distrito(s)`
+                    }
+                    className={
+                      "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors " +
+                      (vacio
+                        ? "border-dashed border-line bg-slate-50 text-muted cursor-not-allowed"
+                        : "border-line bg-white hover:bg-brand-50 hover:border-brand-300")
+                    }
+                  >
+                    {d.label}
+                  </button>
+                );
+              })}
             </div>
           ))}
         </div>

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { round2 } from "@/lib/utils";
+import { round2, hoyISO } from "@/lib/utils";
 
 /** Mapea el prefijo del código de producto a su categoría legible. */
 const CATEGORIA_POR_PREFIJO: Record<string, string> = {
@@ -103,11 +103,9 @@ export async function getAnalitica(
 /** Venta acumulada (total $) del mes en curso, excluyendo cancelados. */
 export async function getVentaMes(): Promise<number> {
   const supabase = await createClient();
-  const hoy = new Date();
-  const primero = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
-  const hasta = hoy.toISOString().slice(0, 10);
+  const hasta = hoyISO();
+  const [anio, mes] = hasta.split("-");
+  const primero = `${anio}-${mes}-01`;
 
   const { data } = await supabase
     .from("pedidos")

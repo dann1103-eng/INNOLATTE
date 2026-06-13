@@ -18,7 +18,7 @@ import {
   calcularIva,
   calcularTotalConIva,
 } from "@/lib/pricing";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn, hoyISO } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,7 +107,7 @@ export function OrderBuilder({
 }) {
   const router = useRouter();
   const modo = pedido ? "editar" : "crear";
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyISO();
 
   const [clienteId, setClienteId] = useState(pedido?.clienteId ?? "");
   const [fecha, setFecha] = useState(pedido?.fecha ?? hoy);

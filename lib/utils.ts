@@ -21,44 +21,46 @@ export function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-function isoDate(d: Date): string {
+/** Zona horaria de El Salvador (UTC-6, sin horario de verano). */
+export const ZONA = "America/El_Salvador";
+
+/** Fecha de "hoy" (yyyy-mm-dd) en hora de El Salvador, sin desfase por UTC. */
+export function hoyISO(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(new Date());
+}
+
+/** Resta días a una fecha ISO (yyyy-mm-dd) de forma segura (sin tz). */
+function restarDiasISO(iso: string, dias: number): string {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - dias);
   return d.toISOString().slice(0, 10);
 }
 
 /**
- * Calcula el rango de fechas (inclusive) para un período del dashboard.
- * Devuelve `desde`=null cuando el período es "todo".
+ * Calcula el rango de fechas (inclusive) para un período del dashboard,
+ * basado en la fecha local de El Salvador. `desde`=null cuando es "todo".
  */
 export function rangoPeriodo(periodo: string | undefined): {
   desde: string | null;
   hasta: string;
   label: string;
 } {
-  const hoy = new Date();
-  const hoyStr = isoDate(hoy);
-  const restar = (dias: number) => {
-    const d = new Date(hoy);
-    d.setDate(d.getDate() - dias);
-    return isoDate(d);
-  };
+  const hoyStr = hoyISO();
+  const [anio, mes] = hoyStr.split("-");
 
   switch (periodo) {
     case "ayer": {
-      const ayer = restar(1);
+      const ayer = restarDiasISO(hoyStr, 1);
       return { desde: ayer, hasta: ayer, label: "ayer" };
     }
     case "7d":
-      return { desde: restar(6), hasta: hoyStr, label: "últimos 7 días" };
-    case "mes": {
-      const primero = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-      return { desde: isoDate(primero), hasta: hoyStr, label: "este mes" };
-    }
+      return { desde: restarDiasISO(hoyStr, 6), hasta: hoyStr, label: "últimos 7 días" };
+    case "mes":
+      return { desde: `${anio}-${mes}-01`, hasta: hoyStr, label: "este mes" };
     case "30d":
-      return { desde: restar(29), hasta: hoyStr, label: "últimos 30 días" };
-    case "anio": {
-      const primero = new Date(hoy.getFullYear(), 0, 1);
-      return { desde: isoDate(primero), hasta: hoyStr, label: "este año" };
-    }
+      return { desde: restarDiasISO(hoyStr, 29), hasta: hoyStr, label: "últimos 30 días" };
+    case "anio":
+      return { desde: `${anio}-01-01`, hasta: hoyStr, label: "este año" };
     case "todo":
       return { desde: null, hasta: hoyStr, label: "todo el histórico" };
     case "hoy":
@@ -67,14 +69,20 @@ export function rangoPeriodo(periodo: string | undefined): {
   }
 }
 
-/** Formatea una fecha ISO a dd/mm/aaaa. */
+/** Formatea una fecha a dd/mm/aaaa. Las fechas "solo día" (yyyy-mm-dd) se
+ *  muestran tal cual, sin conversión de zona horaria (evita el desfase de 1 día). */
 export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return "—";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split("-");
+    return `${d}/${m}/${y}`;
+  }
   const d = typeof value === "string" ? new Date(value) : value;
   if (isNaN(d.getTime())) return "—";
   return new Intl.DateTimeFormat("es-SV", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: ZONA,
   }).format(d);
 }
