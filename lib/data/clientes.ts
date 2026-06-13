@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { round2 } from "@/lib/utils";
 import type { Cliente } from "@/lib/types";
 
 interface FiltrosClientes {
@@ -56,6 +57,22 @@ export async function getCanales(): Promise<string[]> {
   return [...set].sort();
 }
 
+/** Fecha del último pedido (no cancelado) por cliente. */
+export async function getUltimoPedidoPorCliente(): Promise<Map<string, string>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("pedidos")
+    .select("cliente_id, fecha")
+    .neq("estado", "CANCELADO")
+    .order("fecha", { ascending: false });
+
+  const map = new Map<string, string>();
+  for (const p of data ?? []) {
+    if (p.cliente_id && !map.has(p.cliente_id)) map.set(p.cliente_id, p.fecha);
+  }
+  return map;
+}
+
 /** Distritos con cantidad de clientes (para el reporte de rutas). */
 export async function getDistritosConConteo(): Promise<
   { distrito: string; clientes: number }[]
@@ -83,9 +100,13 @@ export interface ClienteRuta {
   telefono: string | null;
   contacto_nombre: string | null;
   canal: string | null;
+  /** Pedidos por entregar (PENDIENTE o EN_RUTA) de este cliente. */
+  pedidosPendientes: number;
+  totalPendiente: number;
 }
 
-/** Clientes (a visitar) que pertenecen a los distritos indicados. */
+/** Clientes (a visitar) que pertenecen a los distritos indicados, anotados con
+ *  sus pedidos por entregar. */
 export async function getClientesPorDistritos(
   distritos: string[],
 ): Promise<ClienteRuta[]> {
@@ -101,5 +122,36 @@ export async function getClientesPorDistritos(
     .order("distrito")
     .order("nombre");
   if (error) throw new Error(error.message);
-  return (data ?? []) as ClienteRuta[];
+
+  const clientes = (data ?? []) as Omit<
+    ClienteRuta,
+    "pedidosPendientes" | "totalPendiente"
+  >[];
+  if (clientes.length === 0) return [];
+
+  // Pedidos por entregar de esos clientes.
+  const ids = clientes.map((c) => c.id);
+  const { data: pedidos } = await supabase
+    .from("pedidos")
+    .select("cliente_id, total")
+    .in("cliente_id", ids)
+    .in("estado", ["PENDIENTE", "EN_RUTA"]);
+
+  const agg = new Map<string, { n: number; total: number }>();
+  for (const p of pedidos ?? []) {
+    if (!p.cliente_id) continue;
+    const a = agg.get(p.cliente_id) ?? { n: 0, total: 0 };
+    a.n += 1;
+    a.total += Number(p.total || 0);
+    agg.set(p.cliente_id, a);
+  }
+
+  return clientes.map((c) => {
+    const a = agg.get(c.id);
+    return {
+      ...c,
+      pedidosPendientes: a?.n ?? 0,
+      totalPendiente: round2(a?.total ?? 0),
+    };
+  });
 }

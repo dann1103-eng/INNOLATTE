@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate } from "@/lib/utils";
+import { useState } from "react";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type { ClienteRuta } from "@/lib/data/clientes";
 
 /**
@@ -61,6 +62,11 @@ export function RutasReport({
   const sel = new Set(seleccionados);
   const disponibles = new Set(distritos.map((d) => d.distrito));
 
+  // Filtro: todos los clientes o solo los que tienen pedido por entregar.
+  const [soloConPedido, setSoloConPedido] = useState(false);
+  const conPedido = clientes.filter((c) => c.pedidosPendientes > 0);
+  const mostrados = soloConPedido ? conPedido : clientes;
+
   function aplicarPreset(preset: string[]) {
     // Solo distritos que existan en la base (con clientes).
     actualizar(preset.filter((d) => disponibles.has(d)));
@@ -89,12 +95,18 @@ export function RutasReport({
     doc.text("INNOLATTE", 40, 40);
     doc.setFontSize(12);
     doc.setTextColor(15, 23, 42);
-    doc.text("Ruta de entrega — clientes a visitar", 40, 58);
+    doc.text(
+      soloConPedido
+        ? "Ruta de entrega — clientes con pedido por entregar"
+        : "Ruta de entrega — clientes a visitar",
+      40,
+      58,
+    );
 
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
     doc.text(`Generado: ${formatDate(new Date())}`, ancho - 40, 40, { align: "right" });
-    doc.text(`${clientes.length} cliente(s)`, ancho - 40, 54, { align: "right" });
+    doc.text(`${mostrados.length} cliente(s)`, ancho - 40, 54, { align: "right" });
 
     doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
@@ -103,8 +115,8 @@ export function RutasReport({
 
     autoTable(doc, {
       startY: 92,
-      head: [["Distrito", "Código", "Cliente", "Contacto", "Teléfono", "Dirección de entrega", "Canal"]],
-      body: clientes.map((c) => [
+      head: [["Distrito", "Código", "Cliente", "Contacto", "Teléfono", "Dirección de entrega", "Canal", "Pend.", "Total pend."]],
+      body: mostrados.map((c) => [
         c.distrito || "—",
         c.codigo_cliente,
         c.nombre_comercial || c.nombre,
@@ -112,11 +124,13 @@ export function RutasReport({
         c.telefono || "—",
         c.direccion_entrega || "—",
         c.canal || "—",
+        c.pedidosPendientes ? String(c.pedidosPendientes) : "—",
+        c.pedidosPendientes ? formatCurrency(c.totalPendiente) : "—",
       ]),
       styles: { fontSize: 8, cellPadding: 4, valign: "top" },
       headStyles: { fillColor: [13, 148, 136], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 5: { cellWidth: 180 } },
+      columnStyles: { 5: { cellWidth: 150 }, 7: { halign: "center" }, 8: { halign: "right" } },
     });
 
     const hoy = new Date().toISOString().slice(0, 10);
@@ -209,19 +223,48 @@ export function RutasReport({
           <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-line">
             <div className="flex items-center gap-2">
               <Users className="size-4 text-brand-600" />
-              <h2 className="font-semibold">{clientes.length} cliente(s) a visitar</h2>
+              <h2 className="font-semibold">{mostrados.length} cliente(s)</h2>
+              <Badge tone="amber">{conPedido.length} con pedido por entregar</Badge>
             </div>
-            <Button onClick={generarPDF} disabled={clientes.length === 0}>
-              <FileDown className="size-4" />
-              Exportar PDF
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-lg border border-line bg-slate-50 p-0.5 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setSoloConPedido(false)}
+                  className={
+                    "px-3 py-1.5 rounded-md transition-colors " +
+                    (!soloConPedido ? "bg-white shadow-sm font-medium" : "text-muted")
+                  }
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSoloConPedido(true)}
+                  className={
+                    "px-3 py-1.5 rounded-md transition-colors " +
+                    (soloConPedido ? "bg-white shadow-sm font-medium" : "text-muted")
+                  }
+                >
+                  Con pedido
+                </button>
+              </div>
+              <Button onClick={generarPDF} disabled={mostrados.length === 0}>
+                <FileDown className="size-4" />
+                Exportar PDF
+              </Button>
+            </div>
           </div>
 
-          {clientes.length === 0 ? (
+          {mostrados.length === 0 ? (
             <EmptyState
               icon={Users}
-              title="Sin clientes"
-              description="No hay clientes activos en los distritos seleccionados."
+              title={soloConPedido ? "Ningún cliente con pedido por entregar" : "Sin clientes"}
+              description={
+                soloConPedido
+                  ? "Ningún cliente de estos distritos tiene pedidos pendientes de entrega."
+                  : "No hay clientes activos en los distritos seleccionados."
+              }
             />
           ) : (
             <Table>
@@ -233,10 +276,11 @@ export function RutasReport({
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Dirección de entrega</TableHead>
                   <TableHead>Canal</TableHead>
+                  <TableHead className="text-right">Por entregar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clientes.map((c) => (
+                {mostrados.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>
                       <Badge tone="gray">{c.distrito}</Badge>
@@ -254,6 +298,18 @@ export function RutasReport({
                     </TableCell>
                     <TableCell>
                       {c.canal ? <Badge tone="blue">{c.canal}</Badge> : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {c.pedidosPendientes > 0 ? (
+                        <span className="inline-flex flex-col items-end">
+                          <Badge tone="amber">{c.pedidosPendientes} pedido(s)</Badge>
+                          <span className="text-xs text-muted mt-0.5 tabular-nums">
+                            {formatCurrency(c.totalPendiente)}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted text-sm">—</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
