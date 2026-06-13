@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { ClienteRuta } from "@/lib/data/clientes";
+import type { Ruta } from "@/lib/data/rutas";
 
 /**
  * Rutas predefinidas según el horario semanal de INNOLATTE. Los nombres que son
@@ -51,11 +52,25 @@ export function RutasReport({
   distritos,
   seleccionados,
   clientes,
+  grupos,
 }: {
   distritos: { distrito: string; clientes: number }[];
   seleccionados: string[];
   clientes: ClienteRuta[];
+  grupos?: { grupo: string; dias: Ruta[] }[];
 }) {
+  // Botones de ruta: desde la BD si existe horario; si no, el horario inicial.
+  const presetsActivos =
+    grupos && grupos.length > 0
+      ? grupos
+          .map((g) => ({
+            grupo: g.grupo,
+            dias: g.dias
+              .filter((d) => d.distritos.length > 0)
+              .map((d) => ({ label: d.dia, distritos: d.distritos })),
+          }))
+          .filter((g) => g.dias.length > 0)
+      : PRESETS;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -147,7 +162,7 @@ export function RutasReport({
           <span className="text-xs text-muted">— carga los distritos del día</span>
         </div>
         <div className="p-5 space-y-3">
-          {PRESETS.map((g) => (
+          {presetsActivos.map((g) => (
             <div key={g.grupo} className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted w-28 shrink-0">
                 {g.grupo}
