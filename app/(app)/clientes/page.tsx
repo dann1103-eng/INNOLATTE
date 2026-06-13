@@ -4,6 +4,7 @@ import {
   getClientes,
   getCanales,
   getUltimoPedidoPorCliente,
+  getUbicacionesClientes,
 } from "@/lib/data/clientes";
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/app/page-header";
@@ -31,14 +32,21 @@ const DIAS_ACTIVO = 60;
 export default async function ClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; canal?: string; actividad?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    canal?: string;
+    actividad?: string;
+    departamento?: string;
+    distrito?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const { perfil } = await requireUser();
-  const [clientes, canales, ultimoMap] = await Promise.all([
+  const [clientes, canales, ultimoMap, ubicaciones] = await Promise.all([
     getClientes(sp),
     getCanales(),
     getUltimoPedidoPorCliente(),
+    getUbicacionesClientes(),
   ]);
   const esAdmin = perfil.rol === "admin";
 
@@ -75,6 +83,16 @@ export default async function ClientesPage({
           param="canal"
           allLabel="Todos los canales"
           options={canales.map((c) => ({ value: c, label: c }))}
+        />
+        <FilterSelect
+          param="departamento"
+          allLabel="Todo departamento"
+          options={ubicaciones.departamentos.map((d) => ({ value: d, label: d }))}
+        />
+        <FilterSelect
+          param="distrito"
+          allLabel="Todo distrito"
+          options={ubicaciones.distritos.map((d) => ({ value: d, label: d }))}
         />
         <FilterSelect
           param="actividad"

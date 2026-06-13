@@ -5,6 +5,8 @@ import type { Cliente } from "@/lib/types";
 interface FiltrosClientes {
   q?: string;
   canal?: string;
+  departamento?: string;
+  distrito?: string;
 }
 
 export async function getClientes(filtros: FiltrosClientes = {}): Promise<Cliente[]> {
@@ -12,6 +14,8 @@ export async function getClientes(filtros: FiltrosClientes = {}): Promise<Client
   let query = supabase.from("clientes").select("*").order("nombre");
 
   if (filtros.canal) query = query.eq("canal", filtros.canal);
+  if (filtros.departamento) query = query.eq("departamento", filtros.departamento);
+  if (filtros.distrito) query = query.eq("distrito", filtros.distrito);
   if (filtros.q) {
     const term = `%${filtros.q}%`;
     query = query.or(
@@ -55,6 +59,25 @@ export async function getCanales(): Promise<string[]> {
   const set = new Set<string>();
   for (const r of data ?? []) if (r.canal) set.add(r.canal);
   return [...set].sort();
+}
+
+/** Departamentos y distritos distintos (para los filtros de ubicación). */
+export async function getUbicacionesClientes(): Promise<{
+  departamentos: string[];
+  distritos: string[];
+}> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("clientes").select("departamento, distrito");
+  const dep = new Set<string>();
+  const dis = new Set<string>();
+  for (const r of data ?? []) {
+    if (r.departamento) dep.add(r.departamento);
+    if (r.distrito) dis.add(r.distrito);
+  }
+  return {
+    departamentos: [...dep].sort(),
+    distritos: [...dis].sort(),
+  };
 }
 
 /** Fecha del último pedido (no cancelado) por cliente. */
