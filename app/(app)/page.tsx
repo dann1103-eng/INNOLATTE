@@ -83,7 +83,9 @@ export default async function DashboardPage({
       ventasQuery,
       supabase
         .from("pedidos")
-        .select("id, folio, fecha, total, estado, cliente:clientes(nombre, nombre_comercial)")
+        .select(
+          "id, folio, fecha, total, estado, cliente:clientes(nombre, nombre_comercial, distrito)",
+        )
         .order("created_at", { ascending: false })
         .limit(8),
       supabase
@@ -108,7 +110,11 @@ export default async function DashboardPage({
     fecha: string;
     total: number;
     estado: EstadoPedido;
-    cliente: { nombre: string; nombre_comercial: string | null } | null;
+    cliente: {
+      nombre: string;
+      nombre_comercial: string | null;
+      distrito: string | null;
+    } | null;
   }[];
 
   return (
@@ -272,6 +278,7 @@ export default async function DashboardPage({
               <TableRow>
                 <TableHead>Folio</TableHead>
                 <TableHead>Cliente</TableHead>
+                <TableHead>Distrito</TableHead>
                 <TableHead>Fecha</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Total</TableHead>
@@ -288,6 +295,7 @@ export default async function DashboardPage({
                   <TableCell className="max-w-[220px] truncate">
                     {p.cliente?.nombre_comercial || p.cliente?.nombre || "—"}
                   </TableCell>
+                  <TableCell className="text-muted">{p.cliente?.distrito || "—"}</TableCell>
                   <TableCell className="text-muted">{formatDate(p.fecha)}</TableCell>
                   <TableCell>
                     <EstadoBadge estado={p.estado} />

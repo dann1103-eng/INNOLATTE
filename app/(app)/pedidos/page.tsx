@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Plus, Download } from "lucide-react";
+import { ClipboardList, Plus } from "lucide-react";
 import { getPedidos } from "@/lib/data/pedidos";
 import { getProductos } from "@/lib/data/productos";
 import { requireUser } from "@/lib/auth";
@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { SearchInput } from "@/components/app/search-input";
 import { FilterSelect } from "@/components/app/filter-select";
 import { DateRangeFilter } from "@/components/app/date-range-filter";
+import { ExportPdfButton } from "@/components/pedidos/export-pdf-button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,20 +42,19 @@ export default async function PedidosPage({
   await requireUser();
   const [pedidos, productos] = await Promise.all([getPedidos(sp), getProductos()]);
 
-  // URL de exportación con los filtros activos.
-  const exportParams = new URLSearchParams();
-  for (const [k, v] of Object.entries(sp)) if (v) exportParams.set(k, v);
-  const exportHref = `/pedidos/export?${exportParams.toString()}`;
+  // Subtítulo del reporte PDF con los filtros activos.
+  const partesSub: string[] = [];
+  if (sp.desde || sp.hasta)
+    partesSub.push(`Fechas: ${sp.desde || "inicio"} a ${sp.hasta || "hoy"}`);
+  if (sp.estado) partesSub.push(`Estado: ${sp.estado}`);
+  if (sp.facturado) partesSub.push(`Facturado: ${sp.facturado === "si" ? "Sí" : "No"}`);
+  if (sp.producto) partesSub.push(`Producto: ${sp.producto}`);
+  const subtitulo = partesSub.join("  ·  ");
 
   return (
     <div>
       <PageHeader title="Pedidos" description={`${pedidos.length} pedido(s)`}>
-        <a href={exportHref}>
-          <Button variant="secondary">
-            <Download className="size-4" />
-            Exportar
-          </Button>
-        </a>
+        <ExportPdfButton pedidos={pedidos} subtitulo={subtitulo} />
         <Link href="/pedidos/nuevo">
           <Button>
             <Plus className="size-4" />
@@ -113,6 +113,7 @@ export default async function PedidosPage({
               <TableRow>
                 <TableHead>Folio</TableHead>
                 <TableHead>Cliente</TableHead>
+                <TableHead>Distrito</TableHead>
                 <TableHead>Fecha</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-center">Facturado</TableHead>
@@ -133,6 +134,7 @@ export default async function PedidosPage({
                   <TableCell className="max-w-[240px] truncate">
                     {p.cliente?.nombre_comercial || p.cliente?.nombre || "—"}
                   </TableCell>
+                  <TableCell className="text-muted">{p.cliente?.distrito || "—"}</TableCell>
                   <TableCell className="text-muted">{formatDate(p.fecha)}</TableCell>
                   <TableCell>
                     <EstadoBadge estado={p.estado} />

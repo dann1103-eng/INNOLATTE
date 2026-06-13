@@ -9,6 +9,7 @@ import {
   Users,
   Package,
   ClipboardList,
+  Route,
   LogOut,
   Menu,
   X,
@@ -19,6 +20,7 @@ import type { Perfil } from "@/lib/types";
 const NAV = [
   { href: "/", label: "Inicio", icon: LayoutDashboard, exact: true },
   { href: "/pedidos", label: "Pedidos", icon: ClipboardList },
+  { href: "/rutas", label: "Rutas", icon: Route },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/catalogo", label: "Catálogo", icon: Package },
 ];
