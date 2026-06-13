@@ -1,0 +1,131 @@
+// ============================================================
+// Tipos del dominio — Paletas INNOLATTE
+// ============================================================
+
+export type Rol = "admin" | "vendedor";
+
+export type FormaPago = "CONTADO" | "CREDITO";
+
+export type EstadoPedido = "PENDIENTE" | "EN_RUTA" | "ENTREGADO" | "CANCELADO";
+
+/** Canales de venta detectados en la base de datos de clientes. */
+export const CANALES = [
+  "DISTRIBUIDOR",
+  "TELEVENTA",
+  "MATERIA PRIMA",
+  "INSTITUCIONAL",
+  "CONSUMIDOR FINAL",
+  "EVENTOS",
+  "DEGUSTACIONES",
+  "DEPURADO",
+] as const;
+
+/** Categorías de producto detectadas en el catálogo. */
+export const CATEGORIAS = ["CONGELADOS", "YOGURT", "MEZCLAS", "TOPPING"] as const;
+
+export const FORMAS_PAGO: FormaPago[] = ["CONTADO", "CREDITO"];
+
+/** Número de listas de precios soportadas (P1..P8 con datos hoy, hasta 20). */
+export const LISTAS_PRECIOS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+
+export const ESTADOS_PEDIDO: { value: EstadoPedido; label: string; color: string }[] = [
+  { value: "PENDIENTE", label: "Pendiente", color: "amber" },
+  { value: "EN_RUTA", label: "En ruta", color: "blue" },
+  { value: "ENTREGADO", label: "Entregado", color: "green" },
+  { value: "CANCELADO", label: "Cancelado", color: "red" },
+];
+
+export interface Perfil {
+  id: string;
+  nombre: string | null;
+  rol: Rol;
+}
+
+export interface Cliente {
+  id: string;
+  codigo_cliente: string;
+  nombre: string;
+  nombre_comercial: string | null;
+  telefono: string | null;
+  correo: string | null;
+  contacto_nombre: string | null;
+  contacto_telefono: string | null;
+  direccion_fiscal: string | null;
+  direccion_entrega: string | null;
+  departamento: string | null;
+  municipio: string | null;
+  distrito: string | null;
+  canal: string | null;
+  lista_precios: number;
+  forma_pago: FormaPago;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Producto {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  categoria: string | null;
+  familia: string | null;
+  sabor: string | null;
+  presentacion: string | null;
+  peso_kg: number | null;
+  costo: number | null;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductoPrecio {
+  id: string;
+  producto_id: string;
+  lista: number;
+  precio: number;
+}
+
+/** Producto con sus precios resueltos (mapa lista -> precio). */
+export interface ProductoConPrecios extends Producto {
+  precios: Record<number, number>; // { 1: 2.21, 2: 2.21, 4: 1.77, ... }
+}
+
+export interface PedidoItem {
+  id: string;
+  pedido_id: string;
+  producto_id: string | null;
+  codigo: string;
+  descripcion: string;
+  sabor: string | null;
+  presentacion: string | null;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+}
+
+export interface Pedido {
+  id: string;
+  folio: number;
+  cliente_id: string | null;
+  fecha: string;
+  canal: string | null;
+  forma_pago: FormaPago | null;
+  direccion_entrega: string | null;
+  lista_precios_aplicada: number;
+  estado: EstadoPedido;
+  facturado: boolean;
+  subtotal: number;
+  total: number;
+  notas: string | null;
+  creado_por: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PedidoConCliente extends Pedido {
+  cliente: Pick<Cliente, "id" | "codigo_cliente" | "nombre" | "nombre_comercial"> | null;
+}
+
+export interface PedidoCompleto extends PedidoConCliente {
+  items: PedidoItem[];
+}
