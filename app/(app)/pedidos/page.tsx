@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList, Plus, Download } from "lucide-react";
 import { getPedidos } from "@/lib/data/pedidos";
+import { getProductos } from "@/lib/data/productos";
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchInput } from "@/components/app/search-input";
 import { FilterSelect } from "@/components/app/filter-select";
+import { DateRangeFilter } from "@/components/app/date-range-filter";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,15 +28,33 @@ export const dynamic = "force-dynamic";
 export default async function PedidosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; estado?: string; facturado?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    estado?: string;
+    facturado?: string;
+    desde?: string;
+    hasta?: string;
+    producto?: string;
+  }>;
 }) {
   const sp = await searchParams;
   await requireUser();
-  const pedidos = await getPedidos(sp);
+  const [pedidos, productos] = await Promise.all([getPedidos(sp), getProductos()]);
+
+  // URL de exportación con los filtros activos.
+  const exportParams = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) if (v) exportParams.set(k, v);
+  const exportHref = `/pedidos/export?${exportParams.toString()}`;
 
   return (
     <div>
       <PageHeader title="Pedidos" description={`${pedidos.length} pedido(s)`}>
+        <a href={exportHref}>
+          <Button variant="secondary">
+            <Download className="size-4" />
+            Exportar
+          </Button>
+        </a>
         <Link href="/pedidos/nuevo">
           <Button>
             <Plus className="size-4" />
@@ -58,6 +78,19 @@ export default async function PedidosPage({
             { value: "no", label: "No facturados" },
           ]}
         />
+        <FilterSelect
+          param="producto"
+          allLabel="Todos los productos"
+          options={productos.map((p) => ({
+            value: p.codigo,
+            label: `${p.descripcion} (${p.codigo})`,
+          }))}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-sm text-muted">Rango de fechas:</span>
+        <DateRangeFilter />
       </div>
 
       <Card className="overflow-hidden">

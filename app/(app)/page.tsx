@@ -1,20 +1,26 @@
 import Link from "next/link";
 import {
-  Users,
-  Package,
   ClipboardList,
   Plus,
   ArrowRight,
   CircleDollarSign,
+  CalendarRange,
+  Radio,
+  Tags,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getAnalitica, getVentaMes } from "@/lib/data/analytics";
 import { PageHeader } from "@/components/app/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EstadoBadge } from "@/components/pedidos/estado-badge";
 import { EmptyState } from "@/components/app/empty-state";
 import { PeriodFilter } from "@/components/app/period-filter";
+import { BarList } from "@/components/app/bar-list";
 import { formatCurrency, formatDate, rangoPeriodo } from "@/lib/utils";
 import type { EstadoPedido } from "@/lib/types";
 
@@ -72,10 +78,8 @@ export default async function DashboardPage({
     .lte("fecha", rango.hasta);
   if (rango.desde) ventasQuery = ventasQuery.gte("fecha", rango.desde);
 
-  const [clientesRes, productosRes, ventasRes, recientesRes, pendientesRes] =
+  const [ventasRes, recientesRes, pendientesRes, analitica, ventaMes] =
     await Promise.all([
-      supabase.from("clientes").select("id", { count: "exact", head: true }),
-      supabase.from("productos").select("id", { count: "exact", head: true }),
       ventasQuery,
       supabase
         .from("pedidos")
@@ -86,6 +90,8 @@ export default async function DashboardPage({
         .from("pedidos")
         .select("id", { count: "exact", head: true })
         .eq("estado", "PENDIENTE"),
+      getAnalitica(rango.desde, rango.hasta),
+      getVentaMes(),
     ]);
 
   const totalPeriodo = (ventasRes.data ?? []).reduce(
@@ -93,6 +99,9 @@ export default async function DashboardPage({
     0,
   );
   const pedidosPeriodoCount = ventasRes.data?.length ?? 0;
+
+  const topDeptos = analitica.porDepartamento.slice(0, 5);
+  const bottomDeptos = [...analitica.porDepartamento].reverse().slice(0, 5);
   const recientes = (recientesRes.data ?? []) as unknown as {
     id: string;
     folio: number;
@@ -128,18 +137,109 @@ export default async function DashboardPage({
           tone="blue"
         />
         <StatCard
+          label="Venta del mes"
+          value={formatCurrency(ventaMes)}
+          icon={CalendarRange}
+          tone="brand"
+        />
+        <StatCard
           label="Pendientes"
           value={pendientesRes.count ?? 0}
           icon={ClipboardList}
           href="/pedidos?estado=PENDIENTE"
           tone="amber"
         />
-        <StatCard
-          label="Clientes"
-          value={clientesRes.count ?? 0}
-          icon={Users}
-          href="/clientes"
-        />
+      </div>
+
+      {/* Analítica del período seleccionado */}
+      <div className="grid gap-4 lg:grid-cols-2 mb-8">
+        <Card>
+          <div className="flex items-center gap-2 p-5 border-b border-line">
+            <Radio className="size-4 text-brand-600" />
+            <h2 className="font-semibold">Ventas por canal ({rango.label})</h2>
+          </div>
+          <div className="p-5">
+            {analitica.ventasPorCanal.length === 0 ? (
+              <p className="text-sm text-muted py-6 text-center">Sin datos en este período.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Canal</TableHead>
+                    <TableHead className="text-center">Pedidos</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analitica.ventasPorCanal.map((c) => (
+                    <TableRow key={c.canal}>
+                      <TableCell>
+                        <Badge tone="blue">{c.canal}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums">{c.pedidos}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {formatCurrency(c.total)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2 p-5 border-b border-line">
+            <Tags className="size-4 text-brand-600" />
+            <h2 className="font-semibold">Ventas por categoría ({rango.label})</h2>
+          </div>
+          <div className="p-5">
+            <BarList
+              tone="green"
+              items={analitica.ventasPorCategoria.map((c) => ({
+                label: c.categoria,
+                value: c.total,
+                valueLabel: formatCurrency(c.total),
+              }))}
+            />
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2 p-5 border-b border-line">
+            <TrendingUp className="size-4 text-green-600" />
+            <h2 className="font-semibold">Top 5 departamentos</h2>
+          </div>
+          <div className="p-5">
+            <BarList
+              tone="brand"
+              items={topDeptos.map((d) => ({
+                label: d.departamento,
+                value: d.total,
+                valueLabel: formatCurrency(d.total),
+                sub: `${d.pedidos} ped.`,
+              }))}
+            />
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2 p-5 border-b border-line">
+            <TrendingDown className="size-4 text-amber-600" />
+            <h2 className="font-semibold">5 departamentos con menos ventas</h2>
+          </div>
+          <div className="p-5">
+            <BarList
+              tone="amber"
+              items={bottomDeptos.map((d) => ({
+                label: d.departamento,
+                value: d.total,
+                valueLabel: formatCurrency(d.total),
+                sub: `${d.pedidos} ped.`,
+              }))}
+            />
+          </div>
+        </Card>
       </div>
 
       <Card>
