@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, Pencil } from "lucide-react";
+import { Package, Pencil, Plus } from "lucide-react";
 import { getProductos, getFacetasCatalogo } from "@/lib/data/productos";
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/app/page-header";
@@ -7,6 +7,7 @@ import { SearchInput } from "@/components/app/search-input";
 import { FilterSelect } from "@/components/app/filter-select";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/app/empty-state";
 import {
   Table,
@@ -35,8 +36,17 @@ export default async function CatalogoPage({
     <div>
       <PageHeader
         title="Catálogo"
-        description={`${productos.length} producto(s) · los precios se editan por lista (P1–P8)`}
-      />
+        description={`${productos.length} producto(s) · precios por lista (P1–P20)`}
+      >
+        {perfil.rol === "admin" && (
+          <Link href="/catalogo/nuevo">
+            <Button>
+              <Plus className="size-4" />
+              Nuevo producto
+            </Button>
+          </Link>
+        )}
+      </PageHeader>
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <SearchInput placeholder="Buscar por código, descripción o sabor..." />

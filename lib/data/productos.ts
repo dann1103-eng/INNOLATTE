@@ -68,6 +68,55 @@ export async function getFacetasCatalogo() {
   };
 }
 
+export interface ComponenteCatalogo {
+  nombre: string;
+  codigo: string;
+}
+
+/**
+ * Construye los catálogos de componentes (categoría, familia, sabor,
+ * presentación) con su código corto, derivándolos del propio código de los
+ * productos existentes (ancho fijo 3+3+3+2). Sirve para el alta de productos.
+ */
+export async function getCatalogosComponentes(): Promise<{
+  categorias: ComponenteCatalogo[];
+  familias: ComponenteCatalogo[];
+  sabores: ComponenteCatalogo[];
+  presentaciones: ComponenteCatalogo[];
+}> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("productos")
+    .select("codigo, categoria, familia, sabor, presentacion");
+
+  const cat = new Map<string, string>();
+  const fam = new Map<string, string>();
+  const sab = new Map<string, string>();
+  const pres = new Map<string, string>();
+
+  for (const p of data ?? []) {
+    const cod = (p.codigo ?? "").trim();
+    if (cod.length < 11) continue;
+    if (p.categoria && !cat.has(p.categoria)) cat.set(p.categoria, cod.slice(0, 3));
+    if (p.familia && !fam.has(p.familia)) fam.set(p.familia, cod.slice(3, 6));
+    if (p.sabor && !sab.has(p.sabor)) sab.set(p.sabor, cod.slice(6, 9));
+    if (p.presentacion && !pres.has(p.presentacion))
+      pres.set(p.presentacion, cod.slice(9, 11));
+  }
+
+  const aLista = (m: Map<string, string>): ComponenteCatalogo[] =>
+    [...m.entries()]
+      .map(([nombre, codigo]) => ({ nombre, codigo }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  return {
+    categorias: aLista(cat),
+    familias: aLista(fam),
+    sabores: aLista(sab),
+    presentaciones: aLista(pres),
+  };
+}
+
 type FilaConPrecios = Producto & {
   producto_precios?: { lista: number; precio: number }[] | null;
 };
