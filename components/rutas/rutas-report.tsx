@@ -3,7 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { FileDown, MapPin, Users, X } from "lucide-react";
+import { FileDown, MapPin, Users, X, Route } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,33 @@ import {
 import { formatDate } from "@/lib/utils";
 import type { ClienteRuta } from "@/lib/data/clientes";
 
+/**
+ * Rutas predefinidas según el horario semanal de INNOLATTE. Los nombres que son
+ * zonas de San Salvador (San Jacinto, Centro Histórico, Escalón…) se mapean al
+ * distrito SAN SALVADOR; se omiten los que no existen como distrito en la base.
+ */
+const PRESETS: { grupo: string; dias: { label: string; distritos: string[] }[] }[] = [
+  {
+    grupo: "Semana 1 y 3",
+    dias: [
+      { label: "Lunes", distritos: ["SOYAPANGO", "ILOPANGO", "SAN SALVADOR", "CIUDAD DELGADO"] },
+      { label: "Martes", distritos: ["SAN MARCOS", "OLOCUILTA", "SAN LUIS TALPA", "SANTIAGO NONUALCO", "ZACATECOLUCA"] },
+      { label: "Miércoles", distritos: ["NEJAPA", "QUEZALTEPEQUE", "APOPA", "AGUILARES", "CIUDAD DELGADO"] },
+      { label: "Jueves", distritos: ["ANTIGUO CUSCATLÁN", "SAN SALVADOR", "MEJICANOS"] },
+    ],
+  },
+  {
+    grupo: "Semana 2 y 4",
+    dias: [
+      { label: "Lunes", distritos: ["SOYAPANGO", "ILOPANGO", "SAN SALVADOR", "TONACATEPEQUE"] },
+      { label: "Martes", distritos: ["SAN JUAN OPICO", "NEJAPA", "COJUTEPEQUE", "APASTEPEQUE", "SAN VICENTE", "ILOBASCO"] },
+      { label: "Miércoles", distritos: ["SAN JUAN OPICO", "NEJAPA", "QUEZALTEPEQUE", "APOPA", "AGUILARES", "SUCHITOTO"] },
+      { label: "Jueves", distritos: ["COLÓN", "SANTA TECLA", "ZARAGOZA", "LA LIBERTAD"] },
+      { label: "Viernes", distritos: ["ANTIGUO CUSCATLÁN", "SAN SALVADOR", "MEJICANOS"] },
+    ],
+  },
+];
+
 export function RutasReport({
   distritos,
   seleccionados,
@@ -32,6 +59,12 @@ export function RutasReport({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sel = new Set(seleccionados);
+  const disponibles = new Set(distritos.map((d) => d.distrito));
+
+  function aplicarPreset(preset: string[]) {
+    // Solo distritos que existan en la base (con clientes).
+    actualizar(preset.filter((d) => disponibles.has(d)));
+  }
 
   function actualizar(nuevos: string[]) {
     const params = new URLSearchParams(searchParams);
@@ -92,6 +125,34 @@ export function RutasReport({
 
   return (
     <div className="space-y-6">
+      {/* Rutas predefinidas (horario semanal) */}
+      <Card>
+        <div className="flex items-center gap-2 p-5 border-b border-line">
+          <Route className="size-4 text-brand-600" />
+          <h2 className="font-semibold">Rutas predefinidas</h2>
+          <span className="text-xs text-muted">— carga los distritos del día</span>
+        </div>
+        <div className="p-5 space-y-3">
+          {PRESETS.map((g) => (
+            <div key={g.grupo} className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted w-28 shrink-0">
+                {g.grupo}
+              </span>
+              {g.dias.map((d) => (
+                <button
+                  key={d.label}
+                  type="button"
+                  onClick={() => aplicarPreset(d.distritos)}
+                  className="rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium hover:bg-brand-50 hover:border-brand-300 transition-colors"
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </Card>
+
       {/* Selector de distritos */}
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-line">
