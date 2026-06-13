@@ -11,7 +11,13 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { crearPedido, actualizarPedido } from "@/app/(app)/pedidos/actions";
-import { resolverPrecio, calcularSubtotal, calcularTotal } from "@/lib/pricing";
+import {
+  resolverPrecio,
+  calcularSubtotal,
+  calcularTotal,
+  calcularIva,
+  calcularTotalConIva,
+} from "@/lib/pricing";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -193,7 +199,9 @@ export function OrderBuilder({
   });
 
   const haydSinPrecio = filasCalculadas.some((f) => f.sinPrecio);
-  const total = calcularTotal(filasCalculadas.map((f) => f.subtotal));
+  const subtotal = calcularTotal(filasCalculadas.map((f) => f.subtotal));
+  const iva = calcularIva(subtotal);
+  const total = calcularTotalConIva(subtotal);
   const puedeGuardar = !!cliente && lineas.length > 0 && !haydSinPrecio && !pending;
 
   function guardar() {
@@ -459,9 +467,19 @@ export function OrderBuilder({
               {lineas.reduce((a, l) => a + l.cantidad, 0)}
             </span>
           </div>
-          <div className="flex items-center justify-between border-t border-line pt-4">
-            <span className="font-semibold">Total</span>
-            <span className="text-2xl font-bold tabular-nums">{formatCurrency(total)}</span>
+          <div className="space-y-1.5 border-t border-line pt-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted">Subtotal</span>
+              <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted">IVA (13%)</span>
+              <span className="tabular-nums">{formatCurrency(iva)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-1.5 border-t border-line">
+              <span className="font-semibold">Total</span>
+              <span className="text-2xl font-bold tabular-nums">{formatCurrency(total)}</span>
+            </div>
           </div>
 
           <div>

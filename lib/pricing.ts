@@ -49,3 +49,16 @@ export function calcularSubtotal(precioUnitario: number, cantidad: number): numb
 export function calcularTotal(subtotales: number[]): number {
   return round2(subtotales.reduce((acc, s) => acc + (s || 0), 0));
 }
+
+/** Tasa de IVA aplicada en El Salvador. */
+export const IVA = 0.13;
+
+/** IVA de un subtotal (sin impuesto). */
+export function calcularIva(subtotal: number): number {
+  return round2(subtotal * IVA);
+}
+
+/** Total con IVA a partir del subtotal (sin impuesto). */
+export function calcularTotalConIva(subtotal: number): number {
+  return round2(subtotal + calcularIva(subtotal));
+}

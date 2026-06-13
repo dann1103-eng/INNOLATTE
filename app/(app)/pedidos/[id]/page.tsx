@@ -142,8 +142,18 @@ export default async function PedidoDetallePage({
         </table>
 
         <div className="flex justify-end mt-5">
-          <div className="w-56 space-y-2">
-            <div className="flex justify-between border-t-2 border-ink pt-3">
+          <div className="w-64 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted">Subtotal</span>
+              <span className="tabular-nums">{formatCurrency(Number(pedido.subtotal))}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted">IVA (13%)</span>
+              <span className="tabular-nums">
+                {formatCurrency(Number(pedido.total) - Number(pedido.subtotal))}
+              </span>
+            </div>
+            <div className="flex justify-between border-t-2 border-ink pt-2">
               <span className="font-bold">Total</span>
               <span className="text-xl font-bold tabular-nums">
                 {formatCurrency(Number(pedido.total))}

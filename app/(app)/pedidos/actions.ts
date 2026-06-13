@@ -3,7 +3,12 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { resolverPrecio, calcularSubtotal, calcularTotal } from "@/lib/pricing";
+import {
+  resolverPrecio,
+  calcularSubtotal,
+  calcularTotal,
+  calcularTotalConIva,
+} from "@/lib/pricing";
 import { round2 } from "@/lib/utils";
 import type { EstadoPedido } from "@/lib/types";
 
@@ -143,7 +148,7 @@ export async function crearPedido(
       estado: "PENDIENTE",
       facturado: false,
       subtotal: r.total,
-      total: r.total,
+      total: calcularTotalConIva(r.total),
       notas: parsed.data.notas?.trim() || null,
       creado_por: user.id,
     })
@@ -196,7 +201,7 @@ export async function actualizarPedido(
       direccion_entrega: r.cliente.direccion_entrega,
       lista_precios_aplicada: r.lista,
       subtotal: r.total,
-      total: r.total,
+      total: calcularTotalConIva(r.total),
       notas: parsed.data.notas?.trim() || null,
     })
     .eq("id", id);
