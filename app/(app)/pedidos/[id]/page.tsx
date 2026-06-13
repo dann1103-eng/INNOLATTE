@@ -34,7 +34,7 @@ export default async function PedidoDetallePage({
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight">Pedido #{pedido.folio}</h1>
           <EstadoBadge estado={pedido.estado} />

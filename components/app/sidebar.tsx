@@ -37,7 +37,7 @@ export function Sidebar({ perfil }: { perfil: Perfil }) {
   return (
     <>
       {/* Barra superior móvil */}
-      <div className="md:hidden sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface px-4 h-14">
+      <div className="no-print md:hidden sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface px-4 h-14">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
             <IceCream className="size-4.5" />
@@ -63,7 +63,7 @@ export function Sidebar({ perfil }: { perfil: Perfil }) {
 
       <aside
         className={cn(
-          "fixed z-40 md:z-auto md:static inset-y-0 left-0 w-64 shrink-0 border-r border-line bg-surface flex flex-col transition-transform md:translate-x-0",
+          "no-print fixed z-40 md:z-auto md:static inset-y-0 left-0 w-64 shrink-0 border-r border-line bg-surface flex flex-col transition-transform md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
