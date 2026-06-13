@@ -16,11 +16,24 @@ export interface PrecioResuelto {
   lista: number;
 }
 
+/** Lista canónica desde la que se cotizan los productos de MEZCLAS. */
+export const LISTA_MEZCLAS = 4;
+
 export function resolverPrecio(
-  producto: Pick<ProductoConPrecios, "precios">,
+  producto: Pick<ProductoConPrecios, "precios"> & { categoria?: string | null },
   lista: number,
 ): PrecioResuelto {
-  const valor = producto.precios?.[lista];
+  let valor = producto.precios?.[lista];
+
+  // Regla MEZCLAS: su precio canónico vive en P4 (P1–P3 vienen vacías). Si la
+  // lista pedida no tiene precio y el producto es una mezcla, se usa P4.
+  if (
+    (valor === undefined || valor === null) &&
+    producto.categoria === "MEZCLAS"
+  ) {
+    valor = producto.precios?.[LISTA_MEZCLAS];
+  }
+
   if (valor === undefined || valor === null || !isFinite(valor)) {
     return { precio: null, sinPrecio: true, lista };
   }

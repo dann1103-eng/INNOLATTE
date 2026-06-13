@@ -60,7 +60,7 @@ export async function crearPedido(
   const ids = items.map((i) => i.productoId);
   const { data: productos, error: prodErr } = await supabase
     .from("productos")
-    .select("id, codigo, descripcion, sabor, presentacion, producto_precios(lista, precio)")
+    .select("id, codigo, descripcion, categoria, sabor, presentacion, producto_precios(lista, precio)")
     .in("id", ids);
   if (prodErr) return { ok: false, error: prodErr.message };
 
@@ -91,7 +91,7 @@ export async function crearPedido(
     if (!prod) return { ok: false, error: "Un producto del pedido ya no existe" };
 
     // Precio: el fijado a mano (si es válido) tiene prioridad; si no, el de la lista.
-    const base = resolverPrecio({ precios: prod.precios }, lista);
+    const base = resolverPrecio({ precios: prod.precios, categoria: prod.categoria }, lista);
     const precio =
       item.precioUnitario !== undefined && item.precioUnitario >= 0
         ? round2(item.precioUnitario)
