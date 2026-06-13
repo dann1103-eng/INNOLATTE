@@ -1,12 +1,15 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { IceCream } from "lucide-react";
+import { IceCream, Pencil } from "lucide-react";
 import { getPedidoCompleto } from "@/lib/data/pedidos";
 import { requireUser } from "@/lib/auth";
 import { Breadcrumb } from "@/components/app/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EstadoBadge } from "@/components/pedidos/estado-badge";
 import { PedidoAcciones } from "@/components/pedidos/pedido-acciones";
+import { EliminarPedido } from "@/components/pedidos/eliminar-pedido";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +20,7 @@ export default async function PedidoDetallePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireUser();
+  const { perfil } = await requireUser();
   const pedido = await getPedidoCompleto(id);
   if (!pedido) notFound();
 
@@ -31,9 +34,22 @@ export default async function PedidoDetallePage({
         />
       </div>
 
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Pedido #{pedido.folio}</h1>
-        <EstadoBadge estado={pedido.estado} />
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Pedido #{pedido.folio}</h1>
+          <EstadoBadge estado={pedido.estado} />
+        </div>
+        <div className="no-print flex items-center gap-2">
+          <Link href={`/pedidos/${pedido.id}/editar`}>
+            <Button variant="secondary">
+              <Pencil className="size-4" />
+              Editar
+            </Button>
+          </Link>
+          {perfil.rol === "admin" && (
+            <EliminarPedido id={pedido.id} folio={pedido.folio} />
+          )}
+        </div>
       </div>
 
       <div className="mb-6">

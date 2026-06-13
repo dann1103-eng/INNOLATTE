@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -10,7 +10,7 @@ import {
   AlertTriangle,
   ShoppingCart,
 } from "lucide-react";
-import { crearPedido } from "@/app/(app)/pedidos/actions";
+import { crearPedido, actualizarPedido } from "@/app/(app)/pedidos/actions";
 import { resolverPrecio, calcularSubtotal, calcularTotal } from "@/lib/pricing";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,22 +40,77 @@ interface LineaPedido {
   precioManual: number | null;
 }
 
+export interface PedidoInicialItem {
+  productoId: string | null;
+  codigo: string;
+  descripcion: string;
+  sabor: string | null;
+  presentacion: string | null;
+  cantidad: number;
+  precioUnitario: number;
+}
+
+export interface PedidoInicial {
+  id: string;
+  clienteId: string;
+  fecha: string;
+  notas: string | null;
+  lista: number;
+  items: PedidoInicialItem[];
+}
+
+/** Construye las líneas iniciales de un pedido existente para editarlo. */
+function seedLineas(
+  pedido: PedidoInicial,
+  productos: ProductoConPrecios[],
+): LineaPedido[] {
+  return pedido.items.map((it) => {
+    let producto = productos.find((p) => p.id === it.productoId);
+    if (!producto) {
+      // Producto inactivo o ausente del catálogo activo: se reconstruye del snapshot.
+      producto = {
+        id: it.productoId ?? `snap-${it.codigo}`,
+        codigo: it.codigo,
+        descripcion: it.descripcion,
+        categoria: null,
+        familia: null,
+        sabor: it.sabor,
+        presentacion: it.presentacion,
+        peso_kg: null,
+        costo: null,
+        activo: true,
+        created_at: "",
+        updated_at: "",
+        precios: { [pedido.lista]: it.precioUnitario },
+      };
+    }
+    const base = resolverPrecio(producto, pedido.lista);
+    const precioManual = base.precio === it.precioUnitario ? null : it.precioUnitario;
+    return { producto, cantidad: it.cantidad, precioManual };
+  });
+}
+
 export function OrderBuilder({
   clientes,
   productos,
+  pedido,
 }: {
   clientes: ClienteSelector[];
   productos: ProductoConPrecios[];
+  pedido?: PedidoInicial;
 }) {
   const router = useRouter();
+  const modo = pedido ? "editar" : "crear";
   const hoy = new Date().toISOString().slice(0, 10);
 
-  const [clienteId, setClienteId] = useState("");
-  const [fecha, setFecha] = useState(hoy);
-  const [notas, setNotas] = useState("");
+  const [clienteId, setClienteId] = useState(pedido?.clienteId ?? "");
+  const [fecha, setFecha] = useState(pedido?.fecha ?? hoy);
+  const [notas, setNotas] = useState(pedido?.notas ?? "");
   const [busqueda, setBusqueda] = useState("");
-  const [lineas, setLineas] = useState<LineaPedido[]>([]);
-  const [listaManual, setListaManual] = useState<number | null>(null);
+  const [lineas, setLineas] = useState<LineaPedido[]>(() =>
+    pedido ? seedLineas(pedido, productos) : [],
+  );
+  const [listaManual, setListaManual] = useState<number | null>(pedido?.lista ?? null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -63,8 +118,14 @@ export function OrderBuilder({
   // Lista efectiva: la elegida para este pedido, o la predeterminada del cliente.
   const lista = cliente ? (listaManual ?? cliente.lista_precios) : null;
 
-  // Al cambiar de cliente, se reinicia la lista a la predeterminada del nuevo cliente.
+  // Al CAMBIAR de cliente se reinicia la lista (no en el primer render, para
+  // respetar la lista del pedido que se está editando).
+  const primerRender = useRef(true);
   useEffect(() => {
+    if (primerRender.current) {
+      primerRender.current = false;
+      return;
+    }
     setListaManual(null);
   }, [clienteId]);
 
@@ -149,22 +210,27 @@ export function OrderBuilder({
       setError("Hay productos sin precio para la lista de este cliente. Quítalos o corrige el precio.");
       return;
     }
+    const payload = {
+      clienteId: cliente.id,
+      fecha,
+      notas,
+      lista: lista ?? undefined,
+      items: filasCalculadas.map((f) => ({
+        productoId: f.producto.id,
+        cantidad: f.cantidad,
+        precioUnitario: f.precio ?? undefined,
+      })),
+    };
+
     startTransition(async () => {
-      const res = await crearPedido({
-        clienteId: cliente.id,
-        fecha,
-        notas,
-        lista: lista ?? undefined,
-        items: filasCalculadas.map((f) => ({
-          productoId: f.producto.id,
-          cantidad: f.cantidad,
-          precioUnitario: f.precio ?? undefined,
-        })),
-      });
+      const res =
+        modo === "editar" && pedido
+          ? await actualizarPedido(pedido.id, payload)
+          : await crearPedido(payload);
       if (res.ok && res.id) {
         router.push(`/pedidos/${res.id}`);
       } else {
-        setError(res.error ?? "No se pudo crear el pedido.");
+        setError(res.error ?? "No se pudo guardar el pedido.");
       }
     });
   }
@@ -435,7 +501,7 @@ export function OrderBuilder({
             ) : (
               <ShoppingCart className="size-4" />
             )}
-            Guardar pedido
+            {modo === "editar" ? "Guardar cambios" : "Guardar pedido"}
           </Button>
         </CardContent>
       </Card>

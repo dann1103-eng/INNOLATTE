@@ -101,7 +101,11 @@ export function Sidebar({ perfil }: { perfil: Perfil }) {
         </nav>
 
         <div className="border-t border-line p-3">
-          <div className="flex items-center gap-3 px-2 py-2">
+          <Link
+            href="/perfil"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-brand-700 text-sm font-semibold">
               {(perfil.nombre || "U").charAt(0).toUpperCase()}
             </div>
@@ -109,7 +113,7 @@ export function Sidebar({ perfil }: { perfil: Perfil }) {
               <div className="truncate text-sm font-medium">{perfil.nombre || "Usuario"}</div>
               <div className="text-xs text-muted capitalize">{perfil.rol}</div>
             </div>
-          </div>
+          </Link>
           <form action="/auth/signout" method="post">
             <button
               type="submit"

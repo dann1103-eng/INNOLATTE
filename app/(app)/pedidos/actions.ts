@@ -26,26 +26,31 @@ const PedidoSchema = z.object({
 export type CrearPedidoInput = z.infer<typeof PedidoSchema>;
 export type CrearPedidoResult = { ok: boolean; id?: string; error?: string };
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+type LineaCalculada = {
+  producto_id: string;
+  codigo: string;
+  descripcion: string;
+  sabor: string | null;
+  presentacion: string | null;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+};
+
 /**
- * Crea un pedido. Los precios se RECALCULAN en el servidor desde la base de
- * datos (no se confía en los valores del navegador) usando la lista del cliente.
+ * Resuelve cliente + líneas + total a partir del input. Recalcula los precios
+ * en el servidor (no confía en el navegador). Compartido por crear y actualizar.
  */
-export async function crearPedido(
+async function resolverPedido(
+  supabase: SupabaseClient,
   input: CrearPedidoInput,
-): Promise<CrearPedidoResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "No autenticado" };
+): Promise<
+  | { ok: true; cliente: { id: string; canal: string | null; forma_pago: string | null; direccion_entrega: string | null }; lista: number; lineas: LineaCalculada[]; total: number }
+  | { ok: false; error: string }
+> {
+  const { clienteId, items, lista: listaOverride } = input;
 
-  const parsed = PedidoSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
-  }
-  const { clienteId, fecha, notas, items, lista: listaOverride } = parsed.data;
-
-  // Cliente + su lista de precios.
   const { data: cliente, error: cliErr } = await supabase
     .from("clientes")
     .select("id, canal, forma_pago, direccion_entrega, lista_precios")
@@ -53,10 +58,8 @@ export async function crearPedido(
     .single();
   if (cliErr || !cliente) return { ok: false, error: "Cliente no encontrado" };
 
-  // La lista override aplica solo a este pedido; no modifica al cliente.
   const lista = listaOverride ?? cliente.lista_precios;
 
-  // Productos con sus precios.
   const ids = items.map((i) => i.productoId);
   const { data: productos, error: prodErr } = await supabase
     .from("productos")
@@ -74,23 +77,11 @@ export async function crearPedido(
     }),
   );
 
-  // Construye las líneas resolviendo el precio.
-  const lineas: {
-    producto_id: string;
-    codigo: string;
-    descripcion: string;
-    sabor: string | null;
-    presentacion: string | null;
-    cantidad: number;
-    precio_unitario: number;
-    subtotal: number;
-  }[] = [];
-
+  const lineas: LineaCalculada[] = [];
   for (const item of items) {
     const prod = mapaProd.get(item.productoId);
     if (!prod) return { ok: false, error: "Un producto del pedido ya no existe" };
 
-    // Precio: el fijado a mano (si es válido) tiene prioridad; si no, el de la lista.
     const base = resolverPrecio({ precios: prod.precios, categoria: prod.categoria }, lista);
     const precio =
       item.precioUnitario !== undefined && item.precioUnitario >= 0
@@ -116,34 +107,54 @@ export async function crearPedido(
   }
 
   const total = calcularTotal(lineas.map((l) => l.subtotal));
+  return { ok: true, cliente, lista, lineas, total };
+}
 
-  // Inserta el pedido (cabecera con snapshot del cliente).
+/**
+ * Crea un pedido. Los precios se RECALCULAN en el servidor desde la base de
+ * datos (no se confía en los valores del navegador) usando la lista del cliente.
+ */
+export async function crearPedido(
+  input: CrearPedidoInput,
+): Promise<CrearPedidoResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const parsed = PedidoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const r = await resolverPedido(supabase, parsed.data);
+  if (!r.ok) return r;
+
   const { data: pedido, error: pedErr } = await supabase
     .from("pedidos")
     .insert({
-      cliente_id: cliente.id,
-      fecha,
-      canal: cliente.canal,
-      forma_pago: cliente.forma_pago,
-      direccion_entrega: cliente.direccion_entrega,
-      lista_precios_aplicada: lista,
+      cliente_id: r.cliente.id,
+      fecha: parsed.data.fecha,
+      canal: r.cliente.canal,
+      forma_pago: r.cliente.forma_pago,
+      direccion_entrega: r.cliente.direccion_entrega,
+      lista_precios_aplicada: r.lista,
       estado: "PENDIENTE",
       facturado: false,
-      subtotal: total,
-      total,
-      notas: notas?.trim() || null,
+      subtotal: r.total,
+      total: r.total,
+      notas: parsed.data.notas?.trim() || null,
       creado_por: user.id,
     })
     .select("id")
     .single();
   if (pedErr || !pedido) return { ok: false, error: pedErr?.message ?? "No se pudo crear" };
 
-  // Inserta las líneas.
   const { error: itemsErr } = await supabase
     .from("pedido_items")
-    .insert(lineas.map((l) => ({ ...l, pedido_id: pedido.id })));
+    .insert(r.lineas.map((l) => ({ ...l, pedido_id: pedido.id })));
   if (itemsErr) {
-    // Rollback manual: elimina la cabecera huérfana.
     await supabase.from("pedidos").delete().eq("id", pedido.id);
     return { ok: false, error: itemsErr.message };
   }
@@ -151,6 +162,85 @@ export async function crearPedido(
   revalidatePath("/pedidos");
   revalidatePath("/");
   return { ok: true, id: pedido.id };
+}
+
+/**
+ * Actualiza un pedido existente: recalcula totales, actualiza la cabecera
+ * (manteniendo folio, estado, facturado, creado_por) y reemplaza las líneas.
+ */
+export async function actualizarPedido(
+  id: string,
+  input: CrearPedidoInput,
+): Promise<CrearPedidoResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const parsed = PedidoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const r = await resolverPedido(supabase, parsed.data);
+  if (!r.ok) return r;
+
+  const { error: updErr } = await supabase
+    .from("pedidos")
+    .update({
+      cliente_id: r.cliente.id,
+      fecha: parsed.data.fecha,
+      canal: r.cliente.canal,
+      forma_pago: r.cliente.forma_pago,
+      direccion_entrega: r.cliente.direccion_entrega,
+      lista_precios_aplicada: r.lista,
+      subtotal: r.total,
+      total: r.total,
+      notas: parsed.data.notas?.trim() || null,
+    })
+    .eq("id", id);
+  if (updErr) return { ok: false, error: updErr.message };
+
+  // Reemplaza las líneas.
+  const { error: delErr } = await supabase.from("pedido_items").delete().eq("pedido_id", id);
+  if (delErr) return { ok: false, error: delErr.message };
+
+  const { error: insErr } = await supabase
+    .from("pedido_items")
+    .insert(r.lineas.map((l) => ({ ...l, pedido_id: id })));
+  if (insErr) return { ok: false, error: insErr.message };
+
+  revalidatePath("/pedidos");
+  revalidatePath(`/pedidos/${id}`);
+  revalidatePath("/");
+  return { ok: true, id };
+}
+
+/** Elimina un pedido (solo admin, según RLS). */
+export async function eliminarPedido(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("rol")
+    .eq("id", user.id)
+    .single();
+  if (perfil?.rol !== "admin")
+    return { ok: false, error: "Solo un administrador puede eliminar pedidos" };
+
+  const { error } = await supabase.from("pedidos").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/pedidos");
+  revalidatePath("/");
+  return { ok: true };
 }
 
 const ESTADOS: EstadoPedido[] = ["PENDIENTE", "EN_RUTA", "ENTREGADO", "CANCELADO"];
