@@ -10,7 +10,7 @@ import {
   calcularTotalConIva,
 } from "@/lib/pricing";
 import { round2 } from "@/lib/utils";
-import type { EstadoPedido } from "@/lib/types";
+import type { EstadoPedido, PedidoItem } from "@/lib/types";
 
 const ItemSchema = z.object({
   productoId: z.string().uuid(),
@@ -273,4 +273,27 @@ export async function marcarFacturado(
   revalidatePath(`/pedidos/${id}`);
   revalidatePath("/pedidos");
   return { ok: true };
+}
+
+/**
+ * Devuelve los items de varios pedidos agrupados por pedido_id.
+ * Usado por el PDF detallado (la tabla de la lista no carga items).
+ * Respeta RLS (cliente de servidor autenticado).
+ */
+export async function getItemsDePedidos(
+  ids: string[],
+): Promise<Record<string, PedidoItem[]>> {
+  if (ids.length === 0) return {};
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("pedido_items")
+    .select("*")
+    .in("pedido_id", ids);
+  if (error) throw new Error(error.message);
+
+  const mapa: Record<string, PedidoItem[]> = {};
+  for (const it of (data ?? []) as PedidoItem[]) {
+    (mapa[it.pedido_id] ??= []).push(it);
+  }
+  return mapa;
 }
