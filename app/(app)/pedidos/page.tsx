@@ -9,10 +9,10 @@ import { FilterSelect } from "@/components/app/filter-select";
 import { DateRangeFilter } from "@/components/app/date-range-filter";
 import { ExportPdfButton } from "@/components/pedidos/export-pdf-button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/app/empty-state";
-import { EstadoBadge } from "@/components/pedidos/estado-badge";
+import { PedidoEstadoInline } from "@/components/pedidos/pedido-estado-inline";
+import { PedidoFacturadoInline } from "@/components/pedidos/pedido-facturado-inline";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ESTADOS_PEDIDO } from "@/lib/types";
 import {
@@ -137,14 +137,10 @@ export default async function PedidosPage({
                   <TableCell className="text-muted">{p.cliente?.distrito || "—"}</TableCell>
                   <TableCell className="text-muted">{formatDate(p.fecha)}</TableCell>
                   <TableCell>
-                    <EstadoBadge estado={p.estado} />
+                    <PedidoEstadoInline id={p.id} estado={p.estado} />
                   </TableCell>
                   <TableCell className="text-center">
-                    {p.facturado ? (
-                      <Badge tone="green">Sí</Badge>
-                    ) : (
-                      <Badge tone="gray">No</Badge>
-                    )}
+                    <PedidoFacturadoInline id={p.id} facturado={p.facturado} />
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatCurrency(Number(p.total))}
