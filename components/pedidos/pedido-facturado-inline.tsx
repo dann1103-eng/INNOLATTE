@@ -21,7 +21,7 @@ export function PedidoFacturadoInline({
     startTransition(async () => {
       const res = await marcarFacturado(id, valor);
       if (!res.ok) setError(res.error ?? "Error");
-      router.refresh();
+      else router.refresh();
     });
   }
 

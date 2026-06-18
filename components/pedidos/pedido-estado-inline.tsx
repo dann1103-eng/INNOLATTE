@@ -23,7 +23,7 @@ export function PedidoEstadoInline({
     startTransition(async () => {
       const res = await actualizarEstado(id, nuevo);
       if (!res.ok) setError(res.error ?? "Error");
-      router.refresh();
+      else router.refresh();
     });
   }
 
