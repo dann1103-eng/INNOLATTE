@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/app/empty-state";
 import { formatDate } from "@/lib/utils";
+import { CD_SEDES } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -35,6 +36,7 @@ export default async function ClientesPage({
   searchParams: Promise<{
     q?: string;
     canal?: string;
+    cd?: string;
     actividad?: string;
     departamento?: string;
     distrito?: string;
@@ -85,6 +87,11 @@ export default async function ClientesPage({
           options={canales.map((c) => ({ value: c, label: c }))}
         />
         <FilterSelect
+          param="cd"
+          allLabel="CD: todos"
+          options={CD_SEDES.map((s) => ({ value: s.value, label: s.label }))}
+        />
+        <FilterSelect
           param="departamento"
           allLabel="Todo departamento"
           options={ubicaciones.departamentos.map((d) => ({ value: d, label: d }))}
@@ -120,6 +127,7 @@ export default async function ClientesPage({
                 <TableHead>Canal</TableHead>
                 <TableHead>Ubicación</TableHead>
                 <TableHead>Actividad</TableHead>
+                <TableHead>CD</TableHead>
                 <TableHead className="text-center">Lista</TableHead>
               </TableRow>
             </TableHeader>
@@ -168,6 +176,9 @@ export default async function ClientesPage({
                       ) : (
                         <Badge tone="red">Sin pedidos</Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-muted text-sm">
+                      {CD_SEDES.find((s) => s.value === c.cd)?.label ?? c.cd}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge tone="gray">P{c.lista_precios}</Badge>

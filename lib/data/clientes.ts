@@ -5,6 +5,7 @@ import type { Cliente } from "@/lib/types";
 interface FiltrosClientes {
   q?: string;
   canal?: string;
+  cd?: string;
   departamento?: string;
   distrito?: string;
 }
@@ -14,6 +15,7 @@ export async function getClientes(filtros: FiltrosClientes = {}): Promise<Client
   let query = supabase.from("clientes").select("*").order("nombre");
 
   if (filtros.canal) query = query.eq("canal", filtros.canal);
+  if (filtros.cd) query = query.eq("cd", filtros.cd);
   if (filtros.departamento) query = query.eq("departamento", filtros.departamento);
   if (filtros.distrito) query = query.eq("distrito", filtros.distrito);
   if (filtros.q) {
