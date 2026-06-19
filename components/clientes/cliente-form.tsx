@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   CANALES,
+  CD_SEDES,
   FORMAS_PAGO,
   LISTAS_PRECIOS,
   type Cliente,
@@ -191,6 +192,16 @@ export function ClienteForm({
               {FORMAS_PAGO.map((f) => (
                 <option key={f} value={f}>
                   {f === "CONTADO" ? "Contado" : "Crédito"}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="cd">CD (sede que prepara)</Label>
+            <Select id="cd" name="cd" defaultValue={cliente?.cd ?? "DISTRIBUCION"}>
+              {CD_SEDES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
                 </option>
               ))}
             </Select>

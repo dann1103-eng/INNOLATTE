@@ -1,7 +1,7 @@
 import { Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Cliente } from "@/lib/types";
+import { CD_SEDES, type Cliente } from "@/lib/types";
 
 function Dato({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -56,11 +56,15 @@ export function ClienteSoloLectura({ cliente }: { cliente: Cliente }) {
           <CardTitle>Comercial</CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="grid gap-4 sm:grid-cols-3">
+          <dl className="grid gap-4 sm:grid-cols-4">
             <Dato label="Canal" value={cliente.canal ? <Badge>{cliente.canal}</Badge> : "—"} />
             <Dato
               label="Lista de precios"
               value={<Badge tone="brand">P{cliente.lista_precios}</Badge>}
+            />
+            <Dato
+              label="CD"
+              value={CD_SEDES.find((s) => s.value === cliente.cd)?.label ?? cliente.cd}
             />
             <Dato
               label="Forma de pago"

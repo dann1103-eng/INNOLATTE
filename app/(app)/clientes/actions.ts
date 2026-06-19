@@ -25,6 +25,7 @@ const ClienteSchema = z.object({
   distrito: opcional,
   canal: opcional,
   lista_precios: z.preprocess((v) => Number(v), z.number().int().min(1).max(20)),
+  cd: z.enum(["PLANTA", "DISTRIBUCION"]),
   forma_pago: z.enum(["CONTADO", "CREDITO"]),
   activo: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
 });
@@ -63,6 +64,7 @@ function leer(formData: FormData) {
     distrito: formData.get("distrito"),
     canal: formData.get("canal"),
     lista_precios: formData.get("lista_precios"),
+    cd: formData.get("cd"),
     forma_pago: formData.get("forma_pago"),
     activo: formData.get("activo"),
   });

@@ -45,7 +45,7 @@ export async function getClientesParaSelector() {
   const { data, error } = await supabase
     .from("clientes")
     .select(
-      "id, codigo_cliente, nombre, nombre_comercial, canal, lista_precios, forma_pago, direccion_entrega",
+      "id, codigo_cliente, nombre, nombre_comercial, canal, lista_precios, cd, forma_pago, direccion_entrega",
     )
     .eq("activo", true)
     .order("nombre");

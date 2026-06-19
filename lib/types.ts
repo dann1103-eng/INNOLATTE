@@ -8,6 +8,14 @@ export type FormaPago = "CONTADO" | "CREDITO";
 
 export type EstadoPedido = "PENDIENTE" | "EN_RUTA" | "ENTREGADO" | "CANCELADO";
 
+/** CD = sede que prepara el pedido. */
+export type CdSede = "PLANTA" | "DISTRIBUCION";
+
+export const CD_SEDES: { value: CdSede; label: string }[] = [
+  { value: "PLANTA", label: "CD Planta" },
+  { value: "DISTRIBUCION", label: "CD Distribución" },
+];
+
 /** Canales de venta detectados en la base de datos de clientes. */
 export const CANALES = [
   "DISTRIBUIDOR",
@@ -63,6 +71,7 @@ export interface Cliente {
   distrito: string | null;
   canal: string | null;
   lista_precios: number;
+  cd: CdSede;
   forma_pago: FormaPago;
   activo: boolean;
   created_at: string;
@@ -118,6 +127,7 @@ export interface Pedido {
   forma_pago: FormaPago | null;
   direccion_entrega: string | null;
   lista_precios_aplicada: number;
+  cd: CdSede;
   estado: EstadoPedido;
   facturado: boolean;
   subtotal: number;
