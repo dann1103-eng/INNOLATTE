@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import type { EstadoPedido, PedidoCompleto, PedidoConCliente } from "@/lib/types";
+import type { CdSede, EstadoPedido, PedidoCompleto, PedidoConCliente } from "@/lib/types";
 
 export interface FiltrosPedidos {
   q?: string;
   estado?: string;
   facturado?: string;
+  cd?: string;
   desde?: string;
   hasta?: string;
   producto?: string; // código de producto
@@ -36,6 +37,7 @@ export async function getPedidos(
   if (filtros.estado) query = query.eq("estado", filtros.estado as EstadoPedido);
   if (filtros.facturado === "si") query = query.eq("facturado", true);
   if (filtros.facturado === "no") query = query.eq("facturado", false);
+  if (filtros.cd) query = query.eq("cd", filtros.cd as CdSede);
   if (filtros.desde) query = query.gte("fecha", filtros.desde);
   if (filtros.hasta) query = query.lte("fecha", filtros.hasta);
   if (idsPorProducto) query = query.in("id", idsPorProducto);

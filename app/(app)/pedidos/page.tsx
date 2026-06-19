@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PedidoEstadoInline } from "@/components/pedidos/pedido-estado-inline";
 import { PedidoFacturadoInline } from "@/components/pedidos/pedido-facturado-inline";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ESTADOS_PEDIDO } from "@/lib/types";
+import { ESTADOS_PEDIDO, CD_SEDES } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -33,6 +33,7 @@ export default async function PedidosPage({
     q?: string;
     estado?: string;
     facturado?: string;
+    cd?: string;
     desde?: string;
     hasta?: string;
     producto?: string;
@@ -48,6 +49,8 @@ export default async function PedidosPage({
     partesSub.push(`Fechas: ${sp.desde || "inicio"} a ${sp.hasta || "hoy"}`);
   if (sp.estado) partesSub.push(`Estado: ${sp.estado}`);
   if (sp.facturado) partesSub.push(`Facturado: ${sp.facturado === "si" ? "Sí" : "No"}`);
+  if (sp.cd)
+    partesSub.push(`CD: ${CD_SEDES.find((s) => s.value === sp.cd)?.label ?? sp.cd}`);
   if (sp.producto) partesSub.push(`Producto: ${sp.producto}`);
   const subtitulo = partesSub.join("  ·  ");
 
@@ -77,6 +80,11 @@ export default async function PedidosPage({
             { value: "si", label: "Facturados" },
             { value: "no", label: "No facturados" },
           ]}
+        />
+        <FilterSelect
+          param="cd"
+          allLabel="CD: todos"
+          options={CD_SEDES.map((s) => ({ value: s.value, label: s.label }))}
         />
         <FilterSelect
           param="producto"
@@ -114,6 +122,7 @@ export default async function PedidosPage({
                 <TableHead>Folio</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Distrito</TableHead>
+                <TableHead>CD</TableHead>
                 <TableHead>Fecha</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-center">Facturado</TableHead>
@@ -135,6 +144,9 @@ export default async function PedidosPage({
                     {p.cliente?.nombre_comercial || p.cliente?.nombre || "—"}
                   </TableCell>
                   <TableCell className="text-muted">{p.cliente?.distrito || "—"}</TableCell>
+                  <TableCell className="text-muted">
+                    {CD_SEDES.find((s) => s.value === p.cd)?.label ?? p.cd}
+                  </TableCell>
                   <TableCell className="text-muted">{formatDate(p.fecha)}</TableCell>
                   <TableCell>
                     <PedidoEstadoInline id={p.id} estado={p.estado} />
