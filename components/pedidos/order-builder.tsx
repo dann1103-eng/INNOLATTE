@@ -336,7 +336,7 @@ export function OrderBuilder({
                       {CD_SEDES.map((s) => (
                         <option key={s.value} value={s.value}>
                           {s.label}
-                          {s.value === cliente.cd ? " (predeterminada)" : ""}
+                          {s.value === cliente.cd ? " (predeterminado)" : ""}
                         </option>
                       ))}
                     </Select>
