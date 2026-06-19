@@ -116,6 +116,10 @@ create index if not exists idx_pedidos_cd on public.pedidos (cd);
 
 ### D. Pedido: override de CD (espejo de la lista P)
 
+- `lib/data/clientes.ts` → `getClientesParaSelector()`: **añadir `cd` a la lista de
+  columnas del `.select(...)`** (hoy selecciona `id, codigo_cliente, nombre,
+  nombre_comercial, canal, lista_precios, forma_pago, direccion_entrega`). Sin esto,
+  `cliente.cd` llega `undefined` en el builder aunque TypeScript no se queje.
 - `order-builder.tsx`:
   - `ClienteSelector` gana `cd: CdSede`.
   - Estado `cdManual: CdSede | null` (default `null`); CD efectivo =
@@ -132,7 +136,11 @@ create index if not exists idx_pedidos_cd on public.pedidos (cd);
   - `crearPedido` y `actualizarPedido` guardan `cd` en la fila de pedido.
 - Las páginas que renderizan `OrderBuilder` (`pedidos/nuevo/page.tsx`,
   `pedidos/[id]/editar/page.tsx`) deben incluir `cd` en el selector de clientes y, al
-  editar, en `PedidoInicial` (que gana `cd: CdSede`).
+  editar, en `PedidoInicial` (que gana `cd: CdSede`). **Importante:** `PedidoInicial.cd`
+  se siembra desde `pedido.cd` (el snapshot/override del pedido, que `getPedidoCompleto`
+  ya trae con `select("*")`), **no** desde el cliente, para preservar el CD que tenía ese
+  pedido. Al editar, `cdManual` arranca en ese valor (de forma análoga a `listaManual`,
+  que arranca en `pedido.lista`).
 - `pedidos/[id]/page.tsx`: mostrar el CD (etiqueta) en el grid Canal/Pago/Lista del
   comprobante.
 
@@ -203,6 +211,7 @@ En `components/pedidos/export-pdf-button.tsx`, `generarDetallado`:
 | `lib/types.ts` | `CdSede`, `CD_SEDES`, campo `cd` en `Cliente` y `Pedido` |
 | `components/clientes/cliente-form.tsx` | Select CD en tarjeta Comercial |
 | `app/(app)/clientes/actions.ts` | `cd` en Zod schema y en `leer()` |
+| `lib/data/clientes.ts` | `cd` en el `select` de `getClientesParaSelector` |
 | `components/clientes/cliente-solo-lectura.tsx` | mostrar CD |
 | `app/(app)/clientes/[id]/page.tsx` | mostrar CD (si aplica en la vista) |
 | `components/pedidos/order-builder.tsx` | override CD (Select + estado + payload) |
