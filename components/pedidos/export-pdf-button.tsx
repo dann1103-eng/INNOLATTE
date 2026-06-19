@@ -7,7 +7,7 @@ import { FileDown, ChevronDown, Loader2 } from "lucide-react";
 import { getItemsDePedidos } from "@/app/(app)/pedidos/actions";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { PedidoConCliente } from "@/lib/types";
+import { CD_SEDES, type CdSede, type PedidoConCliente } from "@/lib/types";
 
 const ESTADO_LABEL: Record<string, string> = {
   PENDIENTE: "Pendiente",
@@ -76,81 +76,102 @@ function generarResumen(pedidos: PedidoConCliente[], subtitulo?: string) {
   doc.save(`pedidos_${hoy}.pdf`);
 }
 
-/** Reporte detallado: un bloque por pedido con su tabla de productos. */
+/**
+ * Dibuja el bloque de un pedido (cabecera + tabla de productos, SIN dinero) a
+ * partir de la coordenada `y`. Devuelve la `y` después del bloque.
+ * Lista de preparación: solo qué lleva el pedido, sin precios ni totales.
+ */
+function dibujarBloquePedido(
+  doc: jsPDF,
+  p: PedidoConCliente,
+  items: { codigo: string; descripcion: string; sabor: string | null; presentacion: string | null; cantidad: number }[],
+  y: number,
+  alto: number,
+): number {
+  // Salto de página si no cabe el encabezado del bloque + una fila.
+  if (y > alto - 120) {
+    doc.addPage();
+    y = 50;
+  }
+
+  const cliente = p.cliente?.nombre_comercial || p.cliente?.nombre || "—";
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`#${p.folio}  ·  ${cliente}`, 40, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    `Distrito: ${p.cliente?.distrito || "—"}   ·   ${formatDate(p.fecha)}   ·   Estado: ${
+      ESTADO_LABEL[p.estado] ?? p.estado
+    }`,
+    40,
+    y + 13,
+  );
+
+  autoTable(doc, {
+    startY: y + 22,
+    head: [["Código", "Descripción", "Cant."]],
+    body:
+      items.length > 0
+        ? items.map((it) => [
+            it.codigo,
+            it.descripcion +
+              (it.sabor ? ` · ${it.sabor}` : "") +
+              (it.presentacion ? ` · ${it.presentacion}` : ""),
+            String(it.cantidad),
+          ])
+        : [["—", "Sin productos", ""]],
+    styles: { fontSize: 8, cellPadding: 3 },
+    headStyles: { fillColor: [13, 148, 136], textColor: 255, fontStyle: "bold" },
+    columnStyles: { 2: { halign: "center", cellWidth: 50 } },
+    margin: { left: 40, right: 40 },
+  });
+
+  return (doc as DocConTabla).lastAutoTable.finalY + 22;
+}
+
+/**
+ * Reporte detallado (lista de preparación): un bloque por pedido con sus
+ * productos y cantidades, SIN dinero, separado en secciones por CD (sede):
+ * primero CD Planta, salto de página, luego CD Distribución.
+ */
 async function generarDetallado(pedidos: PedidoConCliente[], subtitulo?: string) {
   const itemsPorPedido = await getItemsDePedidos(pedidos.map((p) => p.id));
 
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
-  const ancho = doc.internal.pageSize.getWidth();
   const alto = doc.internal.pageSize.getHeight();
   dibujarMembrete(doc, "Reporte detallado de pedidos", subtitulo, pedidos.length);
 
   let y = 90;
-  let granTotal = 0;
+  let primeraSeccion = true;
 
-  for (const p of pedidos) {
-    const items = itemsPorPedido[p.id] ?? [];
-    granTotal += Number(p.total || 0);
+  // Orden fijo de secciones: Planta primero, luego Distribución.
+  const orden: CdSede[] = ["PLANTA", "DISTRIBUCION"];
+  for (const cd of orden) {
+    const grupo = pedidos.filter((p) => p.cd === cd);
+    if (grupo.length === 0) continue;
 
-    // Salto de página si no cabe el encabezado del bloque + una fila.
-    if (y > alto - 120) {
+    const label = CD_SEDES.find((s) => s.value === cd)?.label ?? cd;
+
+    // Cada CD empieza en su propia página (excepto la primera sección).
+    if (!primeraSeccion) {
       doc.addPage();
       y = 50;
     }
+    primeraSeccion = false;
 
-    const cliente = p.cliente?.nombre_comercial || p.cliente?.nombre || "—";
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(15, 23, 42);
-    doc.text(`#${p.folio}  ·  ${cliente}`, 40, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139);
-    doc.text(
-      `Distrito: ${p.cliente?.distrito || "—"}   ·   ${formatDate(p.fecha)}   ·   Estado: ${
-        ESTADO_LABEL[p.estado] ?? p.estado
-      }   ·   Total: ${formatCurrency(Number(p.total))}`,
-      40,
-      y + 13,
-    );
+    doc.setFontSize(13);
+    doc.setTextColor(13, 148, 136);
+    doc.text(`${label} — ${grupo.length} pedido(s)`, 40, y);
+    y += 20;
 
-    autoTable(doc, {
-      startY: y + 22,
-      head: [["Código", "Descripción", "Cant.", "P. unit.", "Subtotal"]],
-      body:
-        items.length > 0
-          ? items.map((it) => [
-              it.codigo,
-              it.descripcion +
-                (it.sabor ? ` · ${it.sabor}` : "") +
-                (it.presentacion ? ` · ${it.presentacion}` : ""),
-              String(it.cantidad),
-              formatCurrency(Number(it.precio_unitario)),
-              formatCurrency(Number(it.subtotal)),
-            ])
-          : [["—", "Sin productos", "", "", ""]],
-      styles: { fontSize: 8, cellPadding: 3 },
-      headStyles: { fillColor: [13, 148, 136], textColor: 255, fontStyle: "bold" },
-      columnStyles: {
-        2: { halign: "center" },
-        3: { halign: "right" },
-        4: { halign: "right" },
-      },
-      margin: { left: 40, right: 40 },
-    });
-
-    y = (doc as DocConTabla).lastAutoTable.finalY + 22;
+    for (const p of grupo) {
+      y = dibujarBloquePedido(doc, p, itemsPorPedido[p.id] ?? [], y, alto);
+    }
   }
-
-  // Gran total al final.
-  if (y > alto - 60) {
-    doc.addPage();
-    y = 50;
-  }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`Gran total: ${formatCurrency(granTotal)}`, ancho - 40, y, { align: "right" });
 
   const hoy = new Date().toISOString().slice(0, 10);
   doc.save(`pedidos_detallado_${hoy}.pdf`);
