@@ -10,7 +10,7 @@ import {
   calcularTotalConIva,
 } from "@/lib/pricing";
 import { round2 } from "@/lib/utils";
-import type { EstadoPedido, PedidoItem } from "@/lib/types";
+import type { CdSede, EstadoPedido, PedidoItem } from "@/lib/types";
 
 const ItemSchema = z.object({
   productoId: z.string().uuid(),
@@ -25,6 +25,8 @@ const PedidoSchema = z.object({
   notas: z.string().nullable().optional(),
   // Lista de precios a aplicar SOLO a este pedido (override). Si no viene, la del cliente.
   lista: z.number().int().min(1).max(20).optional(),
+  // CD (sede) a aplicar SOLO a este pedido (override). Si no viene, el del cliente.
+  cd: z.enum(["PLANTA", "DISTRIBUCION"]).optional(),
   items: z.array(ItemSchema).min(1, "Agrega al menos un producto"),
 });
 
@@ -51,19 +53,20 @@ async function resolverPedido(
   supabase: SupabaseClient,
   input: CrearPedidoInput,
 ): Promise<
-  | { ok: true; cliente: { id: string; canal: string | null; forma_pago: string | null; direccion_entrega: string | null }; lista: number; lineas: LineaCalculada[]; total: number }
+  | { ok: true; cliente: { id: string; canal: string | null; forma_pago: string | null; direccion_entrega: string | null }; lista: number; cd: CdSede; lineas: LineaCalculada[]; total: number }
   | { ok: false; error: string }
 > {
-  const { clienteId, items, lista: listaOverride } = input;
+  const { clienteId, items, lista: listaOverride, cd: cdOverride } = input;
 
   const { data: cliente, error: cliErr } = await supabase
     .from("clientes")
-    .select("id, canal, forma_pago, direccion_entrega, lista_precios")
+    .select("id, canal, forma_pago, direccion_entrega, lista_precios, cd")
     .eq("id", clienteId)
     .single();
   if (cliErr || !cliente) return { ok: false, error: "Cliente no encontrado" };
 
   const lista = listaOverride ?? cliente.lista_precios;
+  const cd: CdSede = cdOverride ?? (cliente.cd as CdSede);
 
   const ids = items.map((i) => i.productoId);
   const { data: productos, error: prodErr } = await supabase
@@ -112,7 +115,7 @@ async function resolverPedido(
   }
 
   const total = calcularTotal(lineas.map((l) => l.subtotal));
-  return { ok: true, cliente, lista, lineas, total };
+  return { ok: true, cliente, lista, cd, lineas, total };
 }
 
 /**
@@ -145,6 +148,7 @@ export async function crearPedido(
       forma_pago: r.cliente.forma_pago,
       direccion_entrega: r.cliente.direccion_entrega,
       lista_precios_aplicada: r.lista,
+      cd: r.cd,
       estado: "PENDIENTE",
       facturado: false,
       subtotal: r.total,
@@ -200,6 +204,7 @@ export async function actualizarPedido(
       forma_pago: r.cliente.forma_pago,
       direccion_entrega: r.cliente.direccion_entrega,
       lista_precios_aplicada: r.lista,
+      cd: r.cd,
       subtotal: r.total,
       total: calcularTotalConIva(r.total),
       notas: parsed.data.notas?.trim() || null,

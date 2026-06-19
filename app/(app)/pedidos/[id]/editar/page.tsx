@@ -33,6 +33,7 @@ export default async function EditarPedidoPage({
     fecha: pedido.fecha,
     notas: pedido.notas,
     lista: pedido.lista_precios_aplicada,
+    cd: pedido.cd,
     items: pedido.items.map((it) => ({
       productoId: it.producto_id,
       codigo: it.codigo,

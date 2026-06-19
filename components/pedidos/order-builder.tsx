@@ -26,7 +26,13 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LISTAS_PRECIOS, ETIQUETAS_LISTA, type ProductoConPrecios } from "@/lib/types";
+import {
+  LISTAS_PRECIOS,
+  ETIQUETAS_LISTA,
+  CD_SEDES,
+  type CdSede,
+  type ProductoConPrecios,
+} from "@/lib/types";
 
 export interface ClienteSelector {
   id: string;
@@ -35,6 +41,7 @@ export interface ClienteSelector {
   nombre_comercial: string | null;
   canal: string | null;
   lista_precios: number;
+  cd: CdSede;
   forma_pago: "CONTADO" | "CREDITO" | null;
   direccion_entrega: string | null;
 }
@@ -62,6 +69,7 @@ export interface PedidoInicial {
   fecha: string;
   notas: string | null;
   lista: number;
+  cd: CdSede;
   items: PedidoInicialItem[];
 }
 
@@ -117,15 +125,18 @@ export function OrderBuilder({
     pedido ? seedLineas(pedido, productos) : [],
   );
   const [listaManual, setListaManual] = useState<number | null>(pedido?.lista ?? null);
+  const [cdManual, setCdManual] = useState<CdSede | null>(pedido?.cd ?? null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const cliente = clientes.find((c) => c.id === clienteId);
   // Lista efectiva: la elegida para este pedido, o la predeterminada del cliente.
   const lista = cliente ? (listaManual ?? cliente.lista_precios) : null;
+  // CD efectivo: el elegido para este pedido, o el predeterminado del cliente.
+  const cd = cliente ? (cdManual ?? cliente.cd) : null;
 
-  // Al CAMBIAR de cliente se reinicia la lista (no en el primer render, para
-  // respetar la lista del pedido que se está editando).
+  // Al CAMBIAR de cliente se reinician la lista y el CD (no en el primer render,
+  // para respetar los del pedido que se está editando).
   const primerRender = useRef(true);
   useEffect(() => {
     if (primerRender.current) {
@@ -133,6 +144,7 @@ export function OrderBuilder({
       return;
     }
     setListaManual(null);
+    setCdManual(null);
   }, [clienteId]);
 
   const resultados = useMemo(() => {
@@ -223,6 +235,7 @@ export function OrderBuilder({
       fecha,
       notas,
       lista: lista ?? undefined,
+      cd: cd ?? undefined,
       items: filasCalculadas.map((f) => ({
         productoId: f.producto.id,
         cantidad: f.cantidad,
@@ -308,6 +321,27 @@ export function OrderBuilder({
                     </Select>
                   </div>
                   {listaManual != null && listaManual !== cliente.lista_precios && (
+                    <span className="mb-2.5 text-xs text-amber-600">
+                      Cambio solo para este pedido (no modifica al cliente).
+                    </span>
+                  )}
+                  <div>
+                    <Label htmlFor="cd-pedido">CD para este pedido</Label>
+                    <Select
+                      id="cd-pedido"
+                      value={cd ?? cliente.cd}
+                      onChange={(e) => setCdManual(e.target.value as CdSede)}
+                      className="w-60"
+                    >
+                      {CD_SEDES.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                          {s.value === cliente.cd ? " (predeterminada)" : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  {cdManual != null && cdManual !== cliente.cd && (
                     <span className="mb-2.5 text-xs text-amber-600">
                       Cambio solo para este pedido (no modifica al cliente).
                     </span>

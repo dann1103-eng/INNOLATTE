@@ -11,6 +11,7 @@ import { EstadoBadge } from "@/components/pedidos/estado-badge";
 import { PedidoAcciones } from "@/components/pedidos/pedido-acciones";
 import { EliminarPedido } from "@/components/pedidos/eliminar-pedido";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { CD_SEDES } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,12 @@ export default async function PedidoDetallePage({
               <div className="text-xs uppercase tracking-wide text-muted">Lista</div>
               <div className="mt-0.5">
                 <Badge tone="brand">P{pedido.lista_precios_aplicada}</Badge>
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted">CD</div>
+              <div className="mt-0.5">
+                {CD_SEDES.find((s) => s.value === pedido.cd)?.label ?? pedido.cd}
               </div>
             </div>
           </div>
