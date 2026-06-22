@@ -7,22 +7,11 @@ import { PageHeader } from "@/components/app/page-header";
 import { SearchInput } from "@/components/app/search-input";
 import { FilterSelect } from "@/components/app/filter-select";
 import { DateRangeFilter } from "@/components/app/date-range-filter";
-import { ExportPdfButton } from "@/components/pedidos/export-pdf-button";
+import { PedidosTabla } from "@/components/pedidos/pedidos-tabla";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/app/empty-state";
-import { PedidoEstadoInline } from "@/components/pedidos/pedido-estado-inline";
-import { PedidoFacturadoInline } from "@/components/pedidos/pedido-facturado-inline";
-import { formatCurrency, formatDate } from "@/lib/utils";
 import { ESTADOS_PEDIDO, CD_SEDES } from "@/lib/types";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +46,6 @@ export default async function PedidosPage({
   return (
     <div>
       <PageHeader title="Pedidos" description={`${pedidos.length} pedido(s)`}>
-        <ExportPdfButton pedidos={pedidos} subtitulo={subtitulo} />
         <Link href="/pedidos/nuevo">
           <Button>
             <Plus className="size-4" />
@@ -101,8 +89,8 @@ export default async function PedidosPage({
         <DateRangeFilter />
       </div>
 
-      <Card className="overflow-hidden">
-        {pedidos.length === 0 ? (
+      {pedidos.length === 0 ? (
+        <Card className="overflow-hidden">
           <EmptyState
             icon={ClipboardList}
             title="Sin pedidos"
@@ -115,54 +103,10 @@ export default async function PedidosPage({
               </Button>
             </Link>
           </EmptyState>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Folio</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Distrito</TableHead>
-                <TableHead>CD</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-center">Facturado</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pedidos.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <Link
-                      href={`/pedidos/${p.id}`}
-                      className="font-medium text-brand-700 hover:underline"
-                    >
-                      #{p.folio}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="max-w-[240px] truncate">
-                    {p.cliente?.nombre_comercial || p.cliente?.nombre || "—"}
-                  </TableCell>
-                  <TableCell className="text-muted">{p.cliente?.distrito || "—"}</TableCell>
-                  <TableCell className="text-muted">
-                    {CD_SEDES.find((s) => s.value === p.cd)?.label ?? p.cd}
-                  </TableCell>
-                  <TableCell className="text-muted">{formatDate(p.fecha)}</TableCell>
-                  <TableCell>
-                    <PedidoEstadoInline id={p.id} estado={p.estado} />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <PedidoFacturadoInline id={p.id} facturado={p.facturado} />
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatCurrency(Number(p.total))}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <PedidosTabla pedidos={pedidos} subtitulo={subtitulo} />
+      )}
     </div>
   );
 }
