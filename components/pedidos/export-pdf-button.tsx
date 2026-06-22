@@ -112,20 +112,14 @@ function dibujarBloquePedido(
 
   autoTable(doc, {
     startY: y + 22,
-    head: [["Código", "Descripción", "Cant."]],
+    head: [["Descripción", "Cant."]],
     body:
       items.length > 0
-        ? items.map((it) => [
-            it.codigo,
-            it.descripcion +
-              (it.sabor ? ` · ${it.sabor}` : "") +
-              (it.presentacion ? ` · ${it.presentacion}` : ""),
-            String(it.cantidad),
-          ])
-        : [["—", "Sin productos", ""]],
+        ? items.map((it) => [it.descripcion, String(it.cantidad)])
+        : [["Sin productos", ""]],
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [13, 148, 136], textColor: 255, fontStyle: "bold" },
-    columnStyles: { 2: { halign: "center", cellWidth: 50 } },
+    columnStyles: { 1: { halign: "center", cellWidth: 50 } },
     margin: { left: 40, right: 40 },
   });
 
