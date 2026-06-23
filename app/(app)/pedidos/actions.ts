@@ -9,7 +9,7 @@ import {
   calcularTotal,
   calcularTotalConIva,
 } from "@/lib/pricing";
-import { round2 } from "@/lib/utils";
+import { round6 } from "@/lib/utils";
 import type { CdSede, EstadoPedido, PedidoItem } from "@/lib/types";
 
 const ItemSchema = z.object({
@@ -93,7 +93,7 @@ async function resolverPedido(
     const base = resolverPrecio({ precios: prod.precios, categoria: prod.categoria }, lista);
     const precio =
       item.precioUnitario !== undefined && item.precioUnitario >= 0
-        ? round2(item.precioUnitario)
+        ? round6(item.precioUnitario)
         : base.precio;
 
     if (precio === null) {

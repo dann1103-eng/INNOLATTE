@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { round2 } from "@/lib/utils";
+import { round6 } from "@/lib/utils";
 
 const opcional = (s: z.ZodString) =>
   z.preprocess((v) => (v === "" || v == null ? null : v), s.nullable());
@@ -83,7 +83,7 @@ export async function actualizarProducto(
     }
     const precio = Number(raw);
     if (!isFinite(precio) || precio < 0) continue;
-    filas.push({ producto_id: id, lista, precio: round2(precio) });
+    filas.push({ producto_id: id, lista, precio: round6(precio) });
   }
 
   if (filas.length > 0) {
@@ -123,7 +123,7 @@ function extraerPrecios(formData: FormData, productoId: string) {
     if (raw === "") continue;
     const precio = Number(raw);
     if (!isFinite(precio) || precio < 0) continue;
-    filas.push({ producto_id: productoId, lista: Number(m[1]), precio: round2(precio) });
+    filas.push({ producto_id: productoId, lista: Number(m[1]), precio: round6(precio) });
   }
   return filas;
 }

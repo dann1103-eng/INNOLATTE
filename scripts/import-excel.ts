@@ -70,8 +70,8 @@ function cellNumber(value: ExcelJS.CellValue): number | null {
   return isFinite(n) ? n : null;
 }
 
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+function round6(n: number): number {
+  return Math.round((n + Number.EPSILON) * 1e6) / 1e6;
 }
 
 const FORMAS_VALIDAS = new Set(["CONTADO", "CREDITO"]);
@@ -142,7 +142,7 @@ async function importCatalogo(wb: ExcelJS.Workbook) {
     const precios: { lista: number; precio: number }[] = [];
     for (const { col, lista } of priceCols) {
       const p = cellNumber(c(col));
-      if (p !== null && p > 0) precios.push({ lista, precio: round2(p) });
+      if (p !== null && p > 0) precios.push({ lista, precio: round6(p) });
     }
     if (precios.length === 0) return; // fila sin precios = no es producto real
 

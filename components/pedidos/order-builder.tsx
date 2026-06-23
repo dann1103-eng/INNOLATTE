@@ -444,7 +444,7 @@ export function OrderBuilder({
                           <Input
                             type="number"
                             min={0}
-                            step="0.01"
+                            step="0.000001"
                             inputMode="decimal"
                             value={f.precio ?? ""}
                             onChange={(e) => cambiarPrecio(f.producto.id, e.target.value)}

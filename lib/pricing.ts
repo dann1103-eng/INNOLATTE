@@ -1,4 +1,4 @@
-import { round2 } from "@/lib/utils";
+import { round6 } from "@/lib/utils";
 import type { ProductoConPrecios } from "@/lib/types";
 
 /**
@@ -37,17 +37,17 @@ export function resolverPrecio(
   if (valor === undefined || valor === null || !isFinite(valor)) {
     return { precio: null, sinPrecio: true, lista };
   }
-  return { precio: round2(valor), sinPrecio: false, lista };
+  return { precio: round6(valor), sinPrecio: false, lista };
 }
 
-/** Calcula el subtotal de una línea (precio * cantidad), redondeado a 2 decimales. */
+/** Calcula el subtotal de una línea (precio * cantidad), redondeado a 6 decimales. */
 export function calcularSubtotal(precioUnitario: number, cantidad: number): number {
-  return round2(precioUnitario * (cantidad || 0));
+  return round6(precioUnitario * (cantidad || 0));
 }
 
-/** Suma una lista de subtotales con redondeo seguro. */
+/** Suma una lista de subtotales con redondeo seguro (6 decimales). */
 export function calcularTotal(subtotales: number[]): number {
-  return round2(subtotales.reduce((acc, s) => acc + (s || 0), 0));
+  return round6(subtotales.reduce((acc, s) => acc + (s || 0), 0));
 }
 
 /** Tasa de IVA aplicada en El Salvador. */
@@ -55,10 +55,10 @@ export const IVA = 0.13;
 
 /** IVA de un subtotal (sin impuesto). */
 export function calcularIva(subtotal: number): number {
-  return round2(subtotal * IVA);
+  return round6(subtotal * IVA);
 }
 
 /** Total con IVA a partir del subtotal (sin impuesto). */
 export function calcularTotalConIva(subtotal: number): number {
-  return round2(subtotal + calcularIva(subtotal));
+  return round6(subtotal + calcularIva(subtotal));
 }

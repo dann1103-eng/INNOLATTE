@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       p.forma_pago || "",
       p.estado,
       p.facturado ? "SI" : "NO",
-      Number(p.total).toFixed(2),
+      String(Number(p.total)),
     ]
       .map(csv)
       .join(","),

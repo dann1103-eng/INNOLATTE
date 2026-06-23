@@ -5,20 +5,30 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Formatea un número como moneda USD (El Salvador), 2 decimales. */
+/**
+ * Formatea un número como moneda USD (El Salvador). Muestra mínimo 2 decimales
+ * y hasta 6 cuando el valor los necesita (precios sin/con IVA finos). Los ceros
+ * sobrantes a la derecha se omiten: $1.00, $1.50, $0.884956.
+ */
 export function formatCurrency(value: number | null | undefined): string {
   const n = typeof value === "number" && isFinite(value) ? value : 0;
   return new Intl.NumberFormat("es-SV", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 6,
   }).format(n);
 }
 
 /** Redondea a 2 decimales evitando errores de punto flotante. */
 export function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/** Redondea a 6 decimales evitando errores de punto flotante. Usado para
+ *  precios finos (manejar el sin/con IVA exacto de lo que se factura). */
+export function round6(value: number): number {
+  return Math.round((value + Number.EPSILON) * 1e6) / 1e6;
 }
 
 /** Zona horaria de El Salvador (UTC-6, sin horario de verano). */

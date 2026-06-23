@@ -17,7 +17,7 @@ automático, **analítica** y **rutas de entrega**. Responder al usuario en **es
 - Datos: helpers en `lib/data/*.ts` (clientes, productos, pedidos, analytics, rutas).
 - UI: componentes base en `components/ui/*` (estilo shadcn hecho a mano), módulos en `components/<modulo>/*`.
 - Filtros de lista = parámetros en la URL (`components/app/filter-select.tsx`, `search-input.tsx`, `date-range-filter.tsx`).
-- Moneda **USD**, 2 decimales (`formatCurrency`, `round2` en `lib/utils.ts`).
+- Moneda **USD**. Los precios admiten **hasta 6 decimales** (para cuadrar sin/con IVA exacto): `round6` para la tubería de precios, `round2` para sumas/reportes agregados. `formatCurrency` muestra mínimo 2 y hasta 6 decimales (omite ceros sobrantes). Helpers en `lib/utils.ts`. Columnas de dinero en BD son `numeric(_,6)` (migración `0004`).
 - **Fechas: usar `hoyISO()` y `formatDate()` de `lib/utils.ts`** — calculan/ muestran en zona `America/El_Salvador` (UTC-6). NO usar `new Date().toISOString()` para "hoy" (desfasa de noche).
 
 ## Reglas de negocio clave

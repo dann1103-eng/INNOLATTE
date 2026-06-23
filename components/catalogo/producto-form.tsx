@@ -174,7 +174,7 @@ export function ProductoForm({
                 id={`precio_${lista}`}
                 name={`precio_${lista}`}
                 type="number"
-                step="0.01"
+                step="0.000001"
                 min="0"
                 inputMode="decimal"
                 defaultValue={producto.precios[lista] ?? ""}
