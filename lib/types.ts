@@ -42,6 +42,23 @@ export const ETIQUETAS_LISTA: Record<number, string> = {
   4: "Distribuidor",
 };
 
+/**
+ * Prefijos de correlativo de cliente (tipo de cliente). El código se arma como
+ * PREFIJO + número correlativo (ej. CLP0031). Al elegir el tipo, el sistema
+ * sugiere el siguiente número disponible para ese prefijo.
+ */
+export const PREFIJOS_CLIENTE: { prefijo: string; descripcion: string }[] = [
+  { prefijo: "CLP", descripcion: "Cliente Planta" },
+  { prefijo: "CDDI", descripcion: "Cede Distribución" },
+  { prefijo: "CETV", descripcion: "Cede Televenta" },
+  { prefijo: "INCFD", descripcion: "Innolatte Consumidor Final CD Distribución" },
+  { prefijo: "INCFP", descripcion: "Innolatte Consumidor Final CD Planta" },
+  { prefijo: "INDA", descripcion: "Innolatte Degustación" },
+  { prefijo: "PLDI", descripcion: "Planta Distribución" },
+  { prefijo: "PLTV", descripcion: "Planta Televenta" },
+  { prefijo: "CDIN", descripcion: "Cede Institucional" },
+];
+
 export const ESTADOS_PEDIDO: { value: EstadoPedido; label: string; color: string }[] = [
   { value: "PENDIENTE", label: "Pendiente", color: "amber" },
   { value: "EN_RUTA", label: "En ruta", color: "blue" },

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,10 @@ import {
   CD_SEDES,
   FORMAS_PAGO,
   LISTAS_PRECIOS,
+  PREFIJOS_CLIENTE,
   type Cliente,
 } from "@/lib/types";
-import type { ActionResult } from "@/app/(app)/clientes/actions";
+import { siguienteCorrelativo, type ActionResult } from "@/app/(app)/clientes/actions";
 
 type Action = (prev: ActionResult, formData: FormData) => Promise<ActionResult>;
 
@@ -36,6 +37,27 @@ export function ClienteForm({
   });
   const [guardado, setGuardado] = useState(false);
 
+  // Correlativo: en alta, elegir un tipo (prefijo) autogenera el código.
+  const [codigo, setCodigo] = useState(cliente?.codigo_cliente ?? "");
+  const [tipoPrefijo, setTipoPrefijo] = useState("");
+  const [generando, setGenerando] = useState(false);
+  const [errorCorr, setErrorCorr] = useState<string | null>(null);
+
+  async function generarCodigo(prefijo: string) {
+    if (!prefijo) return;
+    setGenerando(true);
+    setErrorCorr(null);
+    const res = await siguienteCorrelativo(prefijo);
+    setGenerando(false);
+    if (res.ok) setCodigo(res.codigo);
+    else setErrorCorr(res.error);
+  }
+
+  function onTipoChange(prefijo: string) {
+    setTipoPrefijo(prefijo);
+    void generarCodigo(prefijo);
+  }
+
   useEffect(() => {
     if (state.ok && modo === "editar") {
       setGuardado(true);
@@ -52,16 +74,56 @@ export function ClienteForm({
           <CardTitle>Datos generales</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          {modo === "crear" && (
+            <div>
+              <Label htmlFor="tipo_correlativo">Tipo de cliente (correlativo)</Label>
+              <Select
+                id="tipo_correlativo"
+                value={tipoPrefijo}
+                onChange={(e) => onTipoChange(e.target.value)}
+              >
+                <option value="">— Elegir tipo —</option>
+                {PREFIJOS_CLIENTE.map((p) => (
+                  <option key={p.prefijo} value={p.prefijo}>
+                    {p.prefijo} — {p.descripcion}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1 text-xs text-muted">
+                Al elegir el tipo se genera el siguiente código disponible.
+              </p>
+            </div>
+          )}
           <div>
             <Label htmlFor="codigo_cliente">Código de cliente *</Label>
-            <Input
-              id="codigo_cliente"
-              name="codigo_cliente"
-              defaultValue={cliente?.codigo_cliente ?? ""}
-              placeholder="CDDI0001"
-              className="font-mono"
-              required
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="codigo_cliente"
+                name="codigo_cliente"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                placeholder="CDDI0001"
+                className="font-mono"
+                required
+              />
+              {modo === "crear" && tipoPrefijo && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="shrink-0"
+                  onClick={() => generarCodigo(tipoPrefijo)}
+                  disabled={generando}
+                  title="Regenerar siguiente correlativo"
+                >
+                  {generando ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-4" />
+                  )}
+                </Button>
+              )}
+            </div>
+            {errorCorr && <p className="mt-1 text-xs text-red-600">{errorCorr}</p>}
           </div>
           <div>
             <Label htmlFor="nombre">Razón social / Nombre *</Label>

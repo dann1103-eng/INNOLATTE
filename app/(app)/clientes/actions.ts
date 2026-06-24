@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PREFIJOS_CLIENTE } from "@/lib/types";
 
 const opcional = z.preprocess(
   (v) => (v === "" || v == null ? null : String(v).trim()),
@@ -68,6 +69,48 @@ function leer(formData: FormData) {
     forma_pago: formData.get("forma_pago"),
     activo: formData.get("activo"),
   });
+}
+
+export type CorrelativoResult =
+  | { ok: true; codigo: string }
+  | { ok: false; error: string };
+
+/**
+ * Calcula el siguiente código correlativo disponible para un prefijo (tipo de
+ * cliente). Busca el número más alto entre los códigos existentes con ese
+ * prefijo y devuelve PREFIJO + (máximo + 1), con relleno de ceros a la izquierda
+ * respetando el ancho usado (mínimo 4). Ej.: si el último es CLP0030 → CLP0031.
+ */
+export async function siguienteCorrelativo(prefijo: string): Promise<CorrelativoResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const def = PREFIJOS_CLIENTE.find((p) => p.prefijo === prefijo);
+  if (!def) return { ok: false, error: "Tipo de correlativo no válido" };
+
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("codigo_cliente")
+    .ilike("codigo_cliente", `${prefijo}%`);
+  if (error) return { ok: false, error: error.message };
+
+  // Solo cuentan los códigos que son exactamente PREFIJO + dígitos (descarta,
+  // p. ej., que el prefijo "CDDI" capture algo que solo comparte el inicio).
+  const re = new RegExp(`^${prefijo}(\\d+)$`, "i");
+  let max = 0;
+  let ancho = 4;
+  for (const row of data ?? []) {
+    const m = re.exec(row.codigo_cliente ?? "");
+    if (!m) continue;
+    const n = parseInt(m[1], 10);
+    if (n > max) max = n;
+    if (m[1].length > ancho) ancho = m[1].length;
+  }
+
+  return { ok: true, codigo: `${prefijo}${String(max + 1).padStart(ancho, "0")}` };
 }
 
 export async function crearCliente(
