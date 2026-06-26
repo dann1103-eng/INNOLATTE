@@ -50,7 +50,7 @@ export const ETIQUETAS_LISTA: Record<number, string> = {
 export const PREFIJOS_CLIENTE: { prefijo: string; descripcion: string }[] = [
   { prefijo: "CLP", descripcion: "Cliente Planta" },
   { prefijo: "CDDI", descripcion: "Cede Distribución" },
-  { prefijo: "CETV", descripcion: "Cede Televenta" },
+  { prefijo: "CDTV", descripcion: "Cede Televenta" },
   { prefijo: "INCFD", descripcion: "Innolatte Consumidor Final CD Distribución" },
   { prefijo: "INCFP", descripcion: "Innolatte Consumidor Final CD Planta" },
   { prefijo: "INDA", descripcion: "Innolatte Degustación" },
