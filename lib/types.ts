@@ -51,6 +51,7 @@ export const PREFIJOS_CLIENTE: { prefijo: string; descripcion: string }[] = [
   { prefijo: "CLP", descripcion: "Cliente Planta" },
   { prefijo: "CDDI", descripcion: "Cede Distribución" },
   { prefijo: "CDTV", descripcion: "Cede Televenta" },
+  { prefijo: "CDEV", descripcion: "Cede Eventos" },
   { prefijo: "INCFD", descripcion: "Innolatte Consumidor Final CD Distribución" },
   { prefijo: "INCFP", descripcion: "Innolatte Consumidor Final CD Planta" },
   { prefijo: "INDA", descripcion: "Innolatte Degustación" },
