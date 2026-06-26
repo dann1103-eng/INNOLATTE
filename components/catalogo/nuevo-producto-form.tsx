@@ -47,12 +47,12 @@ function ComponentPicker({
       <Label>{label}</Label>
       <Select value={sel} onChange={(e) => setSel(e.target.value)}>
         <option value="">— Elegir —</option>
+        <option value={NUEVO}>➕ Crear nuevo…</option>
         {opciones.map((o) => (
           <option key={o.nombre} value={o.nombre}>
             {o.nombre} ({o.codigo})
           </option>
         ))}
-        <option value={NUEVO}>➕ Nuevo…</option>
       </Select>
       {esNuevo && (
         <div className="mt-2 grid grid-cols-3 gap-2">
@@ -137,7 +137,8 @@ export function NuevoProductoForm({ catalogos }: { catalogos: Catalogos }) {
           <CardTitle>Componentes del producto</CardTitle>
           <p className="text-sm text-muted mt-1">
             El código se arma con la categoría, familia, sabor y presentación. Si alguno no
-            existe, elige “➕ Nuevo…” y escribe su nombre y código corto.
+            existe, elige “➕ Crear nuevo…” (primera opción del desplegable) y escribe su
+            nombre y código corto.
           </p>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
