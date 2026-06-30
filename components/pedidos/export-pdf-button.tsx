@@ -110,22 +110,21 @@ function dibujarBloquePedidoCol(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  // Trunca nombre si es muy largo para la columna.
   const maxW = COL.ancho - 4;
   doc.text(`#${p.folio} · ${cliente}`, x, y, { maxWidth: maxW });
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text(
     `${p.cliente?.distrito || "—"} · ${formatDate(p.fecha)} · ${ESTADO_LABEL[p.estado] ?? p.estado}`,
     x,
-    y + 10,
+    y + 13,
     { maxWidth: maxW },
   );
 
   autoTable(doc, {
-    startY: y + 18,
+    startY: y + 24,
     head: [["Descripción", "Cant."]],
     body: items.length > 0
       ? items.map((it) => [it.descripcion, String(it.cantidad)])
@@ -166,11 +165,17 @@ async function generarDetallado(pedidos: PedidoConCliente[], subtitulo?: string)
 
     const label = CD_SEDES.find((s) => s.value === cd)?.label ?? cd;
 
-    if (!primeraSeccion) doc.addPage();
+    // Primera sección: el membrete ocupa hasta ~y=80, empezamos en 90.
+    // Secciones siguientes: página nueva, empezamos en 50.
+    let yTit: number;
+    if (!primeraSeccion) {
+      doc.addPage();
+      yTit = 50;
+    } else {
+      yTit = 90;
+    }
     primeraSeccion = false;
 
-    // Título de sección.
-    let yTit = 50;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(13, 148, 136);
