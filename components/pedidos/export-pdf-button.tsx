@@ -111,20 +111,26 @@ function dibujarBloquePedidoCol(
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
   const maxW = COL.ancho - 4;
-  doc.text(`#${p.folio} · ${cliente}`, x, y, { maxWidth: maxW });
+
+  // Mide cuántas líneas ocupa el nombre para no superponer lo que viene abajo.
+  const textoNombre = `#${p.folio} · ${cliente}`;
+  const lineasNombre = doc.splitTextToSize(textoNombre, maxW) as string[];
+  const altNombre = lineasNombre.length * 10; // ~10 pt por línea a fontSize 8.5
+  doc.text(lineasNombre, x, y);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
+  const yDistrito = y + altNombre + 3;
   doc.text(
     `${p.cliente?.distrito || "—"} · ${formatDate(p.fecha)} · ${ESTADO_LABEL[p.estado] ?? p.estado}`,
     x,
-    y + 13,
+    yDistrito,
     { maxWidth: maxW },
   );
 
   autoTable(doc, {
-    startY: y + 24,
+    startY: yDistrito + 13,
     head: [["Descripción", "Cant."]],
     body: items.length > 0
       ? items.map((it) => [it.descripcion, String(it.cantidad)])
@@ -193,8 +199,10 @@ async function generarDetallado(pedidos: PedidoConCliente[], subtitulo?: string)
       }));
 
       // Estima altura del bloque para decidir si cabe en la columna actual.
+      // Se asumen hasta 2 líneas de nombre (20pt) + distrito (13pt) + header tabla (14pt)
+      // + filas + gap inferior.
       const filas = Math.max(items.length, 1);
-      const alturaEstimada = 18 + 14 + filas * 14 + 10; // cabecera + fila header + filas + gap
+      const alturaEstimada = 20 + 13 + 14 + filas * 13 + 12;
 
       // Si no cabe en la columna actual, pasa a la siguiente (o nueva página).
       if (yCol[col] + alturaEstimada > alto - margenInf) {
