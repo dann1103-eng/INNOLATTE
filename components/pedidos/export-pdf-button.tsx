@@ -76,72 +76,89 @@ function generarResumen(pedidos: PedidoConCliente[], subtitulo?: string) {
   doc.save(`pedidos_${hoy}.pdf`);
 }
 
+// Layout de 2 columnas para el PDF detallado.
+const COL = {
+  margenExt: 28,   // margen exterior de página
+  gap: 14,         // espacio entre columnas
+  cantW: 30,       // ancho fijo de la columna Cant.
+  get ancho() {
+    // Ancho de página letter portrait = 612 pt
+    return (612 - this.margenExt * 2 - this.gap) / 2;
+  },
+  x(col: 0 | 1) {
+    return this.margenExt + col * (this.ancho + this.gap);
+  },
+};
+
+type ItemBloque = { descripcion: string; cantidad: number };
+
 /**
- * Dibuja el bloque de un pedido (cabecera + tabla de productos, SIN dinero) a
- * partir de la coordenada `y`. Devuelve la `y` después del bloque.
- * Lista de preparación: solo qué lleva el pedido, sin precios ni totales.
+ * Dibuja el bloque de un pedido dentro de una columna específica.
+ * Devuelve la Y final del bloque en esa columna.
  */
-function dibujarBloquePedido(
+function dibujarBloquePedidoCol(
   doc: jsPDF,
   p: PedidoConCliente,
-  items: { codigo: string; descripcion: string; sabor: string | null; presentacion: string | null; cantidad: number }[],
+  items: ItemBloque[],
+  x: number,
   y: number,
   alto: number,
+  col: 0 | 1,
 ): number {
-  // Salto de página si no cabe el encabezado del bloque + una fila.
-  if (y > alto - 120) {
-    doc.addPage();
-    y = 50;
-  }
-
   const cliente = p.cliente?.nombre_comercial || p.cliente?.nombre || "—";
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(`#${p.folio}  ·  ${cliente}`, 40, y);
+  // Trunca nombre si es muy largo para la columna.
+  const maxW = COL.ancho - 4;
+  doc.text(`#${p.folio} · ${cliente}`, x, y, { maxWidth: maxW });
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
   doc.text(
-    `Distrito: ${p.cliente?.distrito || "—"}   ·   ${formatDate(p.fecha)}   ·   Estado: ${
-      ESTADO_LABEL[p.estado] ?? p.estado
-    }`,
-    40,
-    y + 13,
+    `${p.cliente?.distrito || "—"} · ${formatDate(p.fecha)} · ${ESTADO_LABEL[p.estado] ?? p.estado}`,
+    x,
+    y + 10,
+    { maxWidth: maxW },
   );
 
   autoTable(doc, {
-    startY: y + 22,
+    startY: y + 18,
     head: [["Descripción", "Cant."]],
-    body:
-      items.length > 0
-        ? items.map((it) => [it.descripcion, String(it.cantidad)])
-        : [["Sin productos", ""]],
-    styles: { fontSize: 8, cellPadding: 3 },
-    headStyles: { fillColor: [13, 148, 136], textColor: 255, fontStyle: "bold" },
-    columnStyles: { 1: { halign: "center", cellWidth: 50 } },
-    margin: { left: 40, right: 40 },
+    body: items.length > 0
+      ? items.map((it) => [it.descripcion, String(it.cantidad)])
+      : [["Sin productos", ""]],
+    styles: { fontSize: 7, cellPadding: 2 },
+    headStyles: { fillColor: [13, 148, 136], textColor: 255, fontStyle: "bold", fontSize: 7 },
+    columnStyles: {
+      0: { cellWidth: COL.ancho - COL.cantW },
+      1: { halign: "center", cellWidth: COL.cantW },
+    },
+    margin: { left: x, right: 612 - x - COL.ancho },
+    // Evita que autoTable salte de página solo — lo manejamos nosotros.
+    pageBreak: "avoid",
   });
 
-  return (doc as DocConTabla).lastAutoTable.finalY + 22;
+  void col; // evita warning unused
+  return (doc as DocConTabla).lastAutoTable.finalY + 10;
 }
 
 /**
- * Reporte detallado (lista de preparación): un bloque por pedido con sus
- * productos y cantidades, SIN dinero, separado en secciones por CD (sede):
- * primero CD Planta, salto de página, luego CD Distribución.
+ * Reporte detallado en 2 columnas: más pedidos por página, descripción y
+ * cantidad más cercanas. Separado por CD (Planta primero, luego Distribución).
  */
 async function generarDetallado(pedidos: PedidoConCliente[], subtitulo?: string) {
   const itemsPorPedido = await getItemsDePedidos(pedidos.map((p) => p.id));
 
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const alto = doc.internal.pageSize.getHeight();
+  const margenInf = 40;
   dibujarMembrete(doc, "Reporte detallado de pedidos", subtitulo, pedidos.length);
 
-  let y = 90;
   let primeraSeccion = true;
 
-  // Orden fijo de secciones: Planta primero, luego Distribución.
   const orden: CdSede[] = ["PLANTA", "DISTRIBUCION"];
   for (const cd of orden) {
     const grupo = pedidos.filter((p) => p.cd === cd);
@@ -149,21 +166,51 @@ async function generarDetallado(pedidos: PedidoConCliente[], subtitulo?: string)
 
     const label = CD_SEDES.find((s) => s.value === cd)?.label ?? cd;
 
-    // Cada CD empieza en su propia página (excepto la primera sección).
-    if (!primeraSeccion) {
-      doc.addPage();
-      y = 50;
-    }
+    if (!primeraSeccion) doc.addPage();
     primeraSeccion = false;
 
+    // Título de sección.
+    let yTit = 50;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.setTextColor(13, 148, 136);
-    doc.text(`${label} — ${grupo.length} pedido(s)`, 40, y);
-    y += 20;
+    doc.text(`${label} — ${grupo.length} pedido(s)`, COL.margenExt, yTit);
+
+    // Arrancar las 2 columnas justo debajo del título.
+    const yStart = yTit + 18;
+    let yCol: [number, number] = [yStart, yStart];
+    let col: 0 | 1 = 0;
 
     for (const p of grupo) {
-      y = dibujarBloquePedido(doc, p, itemsPorPedido[p.id] ?? [], y, alto);
+      const items = (itemsPorPedido[p.id] ?? []).map((it) => ({
+        descripcion: it.descripcion,
+        cantidad: it.cantidad,
+      }));
+
+      // Estima altura del bloque para decidir si cabe en la columna actual.
+      const filas = Math.max(items.length, 1);
+      const alturaEstimada = 18 + 14 + filas * 14 + 10; // cabecera + fila header + filas + gap
+
+      // Si no cabe en la columna actual, pasa a la siguiente (o nueva página).
+      if (yCol[col] + alturaEstimada > alto - margenInf) {
+        const otraCol: 0 | 1 = col === 0 ? 1 : 0;
+        if (yCol[otraCol] + alturaEstimada <= alto - margenInf) {
+          // Cabe en la otra columna.
+          col = otraCol;
+        } else {
+          // No cabe en ninguna: nueva página, reiniciar columnas.
+          doc.addPage();
+          yCol = [50, 50];
+          col = 0;
+        }
+      }
+
+      const x = COL.x(col);
+      const yFin = dibujarBloquePedidoCol(doc, p, items, x, yCol[col], alto, col);
+      yCol[col] = yFin;
+
+      // Alterna columna para el siguiente pedido.
+      col = col === 0 ? 1 : 0;
     }
   }
 

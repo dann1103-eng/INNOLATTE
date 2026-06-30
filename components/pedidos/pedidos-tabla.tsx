@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { FileDown, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { ExportPdfButton } from "@/components/pedidos/export-pdf-button";
 import { PedidoEstadoInline } from "@/components/pedidos/pedido-estado-inline";
 import { PedidoFacturadoInline } from "@/components/pedidos/pedido-facturado-inline";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -29,6 +31,8 @@ export function PedidosTabla({
   subtitulo?: string;
 }) {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [menuExcel, setMenuExcel] = useState(false);
+  const refExcel = useRef<HTMLDivElement>(null);
 
   const haySeleccion = seleccionados.size > 0;
   const todosMarcados = pedidos.length > 0 && seleccionados.size === pedidos.length;
@@ -52,6 +56,12 @@ export function PedidosTabla({
     [pedidos, seleccionados, haySeleccion],
   );
 
+  // Construye la URL del Excel pasando los mismos filtros que están en la URL actual.
+  function urlExcel() {
+    const params = new URLSearchParams(window.location.search);
+    return `/pedidos/export-excel?${params.toString()}`;
+  }
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -60,7 +70,40 @@ export function PedidosTabla({
             ? `${seleccionados.size} de ${pedidos.length} seleccionado(s) para el PDF`
             : "Marca los pedidos para incluirlos en el PDF (o expórtalos todos)"}
         </span>
-        <ExportPdfButton pedidos={pedidosParaPdf} subtitulo={subtitulo} />
+        <div className="flex items-center gap-2">
+          <ExportPdfButton pedidos={pedidosParaPdf} subtitulo={subtitulo} />
+          {/* Botón Excel */}
+          <div className="relative" ref={refExcel}>
+            <Button
+              variant="secondary"
+              onClick={() => setMenuExcel((v) => !v)}
+              disabled={pedidos.length === 0}
+            >
+              <FileSpreadsheet className="size-4" />
+              Exportar Excel
+              <ChevronDown className="size-4" />
+            </Button>
+            {menuExcel && (
+              <div
+                className="absolute right-0 z-20 mt-1 w-64 rounded-lg border border-line bg-white p-1 shadow-lg"
+                onMouseLeave={() => setMenuExcel(false)}
+              >
+                <a
+                  href={urlExcel()}
+                  download
+                  onClick={() => setMenuExcel(false)}
+                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-slate-50"
+                >
+                  <FileDown className="size-4 text-green-600" />
+                  <span>
+                    <span className="font-medium block">Datos completos (.xlsx)</span>
+                    <span className="text-xs text-muted">Cabecera + líneas, listo para tabla dinámica</span>
+                  </span>
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
