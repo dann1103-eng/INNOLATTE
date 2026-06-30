@@ -58,6 +58,7 @@ export const PREFIJOS_CLIENTE: { prefijo: string; descripcion: string }[] = [
   { prefijo: "PLDI", descripcion: "Planta Distribución" },
   { prefijo: "PLTV", descripcion: "Planta Televenta" },
   { prefijo: "CDIN", descripcion: "Cede Institucional" },
+  { prefijo: "PLMP", descripcion: "Planta Materia Prima" },
 ];
 
 export const ESTADOS_PEDIDO: { value: EstadoPedido; label: string; color: string }[] = [

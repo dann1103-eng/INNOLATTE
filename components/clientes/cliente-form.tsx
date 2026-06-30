@@ -38,10 +38,17 @@ export function ClienteForm({
   const [guardado, setGuardado] = useState(false);
 
   // Correlativo: en alta, elegir un tipo (prefijo) autogenera el código.
+  const NUEVO_TIPO = "__nuevo__";
   const [codigo, setCodigo] = useState(cliente?.codigo_cliente ?? "");
   const [tipoPrefijo, setTipoPrefijo] = useState("");
+  const [nuevoPrefijoVal, setNuevoPrefijoVal] = useState("");
   const [generando, setGenerando] = useState(false);
   const [errorCorr, setErrorCorr] = useState<string | null>(null);
+
+  // Prefijo activo: el elegido del listado o el que escribió si eligió "Nuevo tipo".
+  const prefijoActivo = tipoPrefijo === NUEVO_TIPO
+    ? nuevoPrefijoVal.trim().toUpperCase()
+    : tipoPrefijo;
 
   async function generarCodigo(prefijo: string) {
     if (!prefijo) return;
@@ -53,9 +60,11 @@ export function ClienteForm({
     else setErrorCorr(res.error);
   }
 
-  function onTipoChange(prefijo: string) {
-    setTipoPrefijo(prefijo);
-    void generarCodigo(prefijo);
+  function onTipoChange(valor: string) {
+    setTipoPrefijo(valor);
+    setNuevoPrefijoVal("");
+    if (valor !== NUEVO_TIPO) void generarCodigo(valor);
+    else setCodigo(""); // espera a que escriba el prefijo nuevo
   }
 
   useEffect(() => {
@@ -75,28 +84,88 @@ export function ClienteForm({
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           {modo === "crear" && (
-            <div>
-              <Label htmlFor="tipo_correlativo">Tipo de cliente (correlativo)</Label>
-              <Select
-                id="tipo_correlativo"
-                value={tipoPrefijo}
-                onChange={(e) => onTipoChange(e.target.value)}
-              >
-                <option value="">— Elegir tipo —</option>
-                {PREFIJOS_CLIENTE.map((p) => (
-                  <option key={p.prefijo} value={p.prefijo}>
-                    {p.prefijo} — {p.descripcion}
-                  </option>
-                ))}
-              </Select>
-              <p className="mt-1 text-xs text-muted">
-                Al elegir el tipo se genera el siguiente código disponible.
-              </p>
+            <div className="sm:col-span-2 grid sm:grid-cols-2 gap-4 items-start">
+              <div>
+                <Label htmlFor="tipo_correlativo">Tipo de cliente (correlativo)</Label>
+                <Select
+                  id="tipo_correlativo"
+                  value={tipoPrefijo}
+                  onChange={(e) => onTipoChange(e.target.value)}
+                >
+                  <option value="">— Elegir tipo —</option>
+                  {PREFIJOS_CLIENTE.map((p) => (
+                    <option key={p.prefijo} value={p.prefijo}>
+                      {p.prefijo} — {p.descripcion}
+                    </option>
+                  ))}
+                  <option value={NUEVO_TIPO}>➕ Nuevo tipo…</option>
+                </Select>
+                {tipoPrefijo === NUEVO_TIPO && (
+                  <div className="mt-2 space-y-2">
+                    <Input
+                      placeholder="Prefijo (ej. XYZW)"
+                      value={nuevoPrefijoVal}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase().replace(/\s/g, "");
+                        setNuevoPrefijoVal(val);
+                        setCodigo(""); // limpia hasta que pulse generar
+                      }}
+                      className="font-mono"
+                      maxLength={8}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      disabled={!nuevoPrefijoVal.trim() || generando}
+                      onClick={() => generarCodigo(nuevoPrefijoVal.trim().toUpperCase())}
+                    >
+                      {generando ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                      Generar correlativo
+                    </Button>
+                    <p className="text-xs text-muted">
+                      Escribe el prefijo y pulsa "Generar" para obtener el siguiente número.
+                    </p>
+                  </div>
+                )}
+                {tipoPrefijo !== NUEVO_TIPO && (
+                  <p className="mt-1 text-xs text-muted">
+                    Al elegir el tipo se genera el siguiente código disponible.
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="codigo_cliente">Código de cliente *</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="codigo_cliente"
+                    name="codigo_cliente"
+                    value={codigo}
+                    onChange={(e) => setCodigo(e.target.value)}
+                    placeholder="CDDI0001"
+                    className="font-mono"
+                    required
+                  />
+                  {prefijoActivo && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="shrink-0"
+                      onClick={() => generarCodigo(prefijoActivo)}
+                      disabled={generando}
+                      title="Regenerar siguiente correlativo"
+                    >
+                      {generando ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                    </Button>
+                  )}
+                </div>
+                {errorCorr && <p className="mt-1 text-xs text-red-600">{errorCorr}</p>}
+              </div>
             </div>
           )}
-          <div>
-            <Label htmlFor="codigo_cliente">Código de cliente *</Label>
-            <div className="flex items-center gap-2">
+          {modo === "editar" && (
+            <div>
+              <Label htmlFor="codigo_cliente">Código de cliente *</Label>
               <Input
                 id="codigo_cliente"
                 name="codigo_cliente"
@@ -106,25 +175,8 @@ export function ClienteForm({
                 className="font-mono"
                 required
               />
-              {modo === "crear" && tipoPrefijo && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="shrink-0"
-                  onClick={() => generarCodigo(tipoPrefijo)}
-                  disabled={generando}
-                  title="Regenerar siguiente correlativo"
-                >
-                  {generando ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="size-4" />
-                  )}
-                </Button>
-              )}
             </div>
-            {errorCorr && <p className="mt-1 text-xs text-red-600">{errorCorr}</p>}
-          </div>
+          )}
           <div>
             <Label htmlFor="nombre">Razón social / Nombre *</Label>
             <Input id="nombre" name="nombre" defaultValue={cliente?.nombre ?? ""} required />

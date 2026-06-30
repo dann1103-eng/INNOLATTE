@@ -4,7 +4,6 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PREFIJOS_CLIENTE } from "@/lib/types";
 
 const opcional = z.preprocess(
   (v) => (v === "" || v == null ? null : String(v).trim()),
@@ -88,8 +87,8 @@ export async function siguienteCorrelativo(prefijo: string): Promise<Correlativo
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "No autenticado" };
 
-  const def = PREFIJOS_CLIENTE.find((p) => p.prefijo === prefijo);
-  if (!def) return { ok: false, error: "Tipo de correlativo no válido" };
+  if (!prefijo || !/^[A-Z0-9]{1,12}$/i.test(prefijo))
+    return { ok: false, error: "Prefijo inválido (solo letras y números, máx. 12)" };
 
   const { data, error } = await supabase
     .from("clientes")
