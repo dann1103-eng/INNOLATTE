@@ -160,7 +160,7 @@ export interface Pedido {
 export interface PedidoConCliente extends Pedido {
   cliente: Pick<
     Cliente,
-    "id" | "codigo_cliente" | "nombre" | "nombre_comercial" | "distrito"
+    "id" | "codigo_cliente" | "nombre" | "nombre_comercial" | "distrito" | "departamento"
   > | null;
 }
 

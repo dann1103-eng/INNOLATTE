@@ -30,7 +30,7 @@ export async function getPedidos(
   let query = supabase
     .from("pedidos")
     .select(
-      "*, cliente:clientes(id, codigo_cliente, nombre, nombre_comercial, distrito)",
+      "*, cliente:clientes(id, codigo_cliente, nombre, nombre_comercial, distrito, departamento)",
     )
     .order("created_at", { ascending: false });
 
