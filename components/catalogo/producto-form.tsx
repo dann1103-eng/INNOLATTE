@@ -11,6 +11,8 @@ import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CATEGORIAS, LISTAS_PRECIOS, type ProductoConPrecios } from "@/lib/types";
 
+const NUEVA_FAMILIA = "__nueva__";
+
 const ETIQUETAS_LISTA: Record<number, string> = {
   2: "Estándar",
   4: "Distribuidor",
@@ -19,9 +21,11 @@ const ETIQUETAS_LISTA: Record<number, string> = {
 export function ProductoForm({
   producto,
   esAdmin,
+  familias = [],
 }: {
   producto: ProductoConPrecios;
   esAdmin: boolean;
+  familias?: string[];
 }) {
   const router = useRouter();
   const action = actualizarProducto.bind(null, producto.id);
@@ -29,6 +33,16 @@ export function ProductoForm({
     ok: false,
   });
   const [guardado, setGuardado] = useState(false);
+
+  // Familia: selector entre existentes o nueva
+  const initialFamSel = producto.familia
+    ? (familias.includes(producto.familia) ? producto.familia : NUEVA_FAMILIA)
+    : "";
+  const [famSel, setFamSel] = useState(initialFamSel);
+  const [famNueva, setFamNueva] = useState(
+    producto.familia && !familias.includes(producto.familia) ? producto.familia : "",
+  );
+  const familiaActiva = famSel === NUEVA_FAMILIA ? famNueva : famSel;
 
   useEffect(() => {
     if (state.ok) {
@@ -106,12 +120,31 @@ export function ProductoForm({
           </div>
           <div>
             <Label htmlFor="familia">Familia</Label>
-            <Input
+            <input type="hidden" name="familia" value={familiaActiva} />
+            <Select
               id="familia"
-              name="familia"
-              defaultValue={producto.familia ?? ""}
+              value={famSel}
+              onChange={(e) => {
+                setFamSel(e.target.value);
+                if (e.target.value !== NUEVA_FAMILIA) setFamNueva("");
+              }}
               disabled={disabled}
-            />
+            >
+              <option value="">— Sin familia —</option>
+              <option value={NUEVA_FAMILIA}>➕ Nueva familia…</option>
+              {familias.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </Select>
+            {famSel === NUEVA_FAMILIA && (
+              <Input
+                className="mt-2"
+                placeholder="Nombre de la nueva familia"
+                value={famNueva}
+                onChange={(e) => setFamNueva(e.target.value.toUpperCase())}
+                disabled={disabled}
+              />
+            )}
           </div>
           <div>
             <Label htmlFor="peso_kg">Peso (kg)</Label>

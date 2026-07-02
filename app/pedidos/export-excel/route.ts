@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
 import { getPedidos, type FiltrosPedidos } from "@/lib/data/pedidos";
-import { getItemsDePedidos } from "@/app/(app)/pedidos/actions";
 import { formatDate } from "@/lib/utils";
 import { CD_SEDES } from "@/lib/types";
 
@@ -42,7 +41,24 @@ export async function GET(request: NextRequest) {
   };
 
   const pedidos = await getPedidos(filtros);
-  const itemsPorPedido = await getItemsDePedidos(pedidos.map((p) => p.id));
+
+  // Fetch items with familia join (not a snapshot field, join productos for current value)
+  type ItemConFamilia = {
+    id: string; pedido_id: string; codigo: string; descripcion: string;
+    sabor: string | null; presentacion: string | null;
+    cantidad: number; precio_unitario: number | string; subtotal: number | string;
+    producto: { familia: string | null }[] | null;
+  };
+  const itemsPorPedido: Record<string, ItemConFamilia[]> = {};
+  if (pedidos.length > 0) {
+    const { data: itemsRaw } = await supabase
+      .from("pedido_items")
+      .select("id, pedido_id, codigo, descripcion, sabor, presentacion, cantidad, precio_unitario, subtotal, producto:productos(familia)")
+      .in("pedido_id", pedidos.map((p) => p.id));
+    for (const it of (itemsRaw ?? []) as ItemConFamilia[]) {
+      (itemsPorPedido[it.pedido_id] ??= []).push(it);
+    }
+  }
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "INNOLATTE";
@@ -150,6 +166,7 @@ export async function GET(request: NextRequest) {
     { header: "Facturado", key: "facturado", width: 10 },
     { header: "Cód. producto", key: "cod_producto", width: 14 },
     { header: "Descripción", key: "descripcion", width: 36 },
+    { header: "Familia", key: "familia", width: 22 },
     { header: "Sabor", key: "sabor", width: 14 },
     { header: "Presentación", key: "presentacion", width: 14 },
     { header: "Cantidad", key: "cantidad", width: 10 },
@@ -177,6 +194,7 @@ export async function GET(request: NextRequest) {
         facturado: p.facturado ? "Sí" : "No",
         cod_producto: it.codigo,
         descripcion: it.descripcion,
+        familia: it.producto?.[0]?.familia ?? "",
         sabor: it.sabor ?? "",
         presentacion: it.presentacion ?? "",
         cantidad: it.cantidad,

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProductoConPrecios } from "@/lib/data/productos";
+import { getProductoConPrecios, getCatalogosComponentes } from "@/lib/data/productos";
 import { requireUser } from "@/lib/auth";
 import { Breadcrumb } from "@/components/app/page-header";
 import { ProductoForm } from "@/components/catalogo/producto-form";
@@ -12,9 +12,10 @@ export default async function ProductoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [producto, { perfil }] = await Promise.all([
+  const [producto, { perfil }, catalogos] = await Promise.all([
     getProductoConPrecios(id),
     requireUser(),
+    getCatalogosComponentes(),
   ]);
 
   if (!producto) notFound();
@@ -28,7 +29,11 @@ export default async function ProductoPage({
         ]}
       />
       <h1 className="text-2xl font-bold tracking-tight mb-6">{producto.descripcion}</h1>
-      <ProductoForm producto={producto} esAdmin={perfil.rol === "admin"} />
+      <ProductoForm
+        producto={producto}
+        esAdmin={perfil.rol === "admin"}
+        familias={catalogos.familias.map((f) => f.nombre)}
+      />
     </div>
   );
 }
